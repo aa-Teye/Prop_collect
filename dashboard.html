@@ -511,17 +511,16 @@
   };
   
   function formatWhatsApp(phone) {
-    if (!phone) return '#';
-    var clean = phone.toString().replace(/\s/g, '');
-    if (clean.startsWith('0')) {
+    var clean = phone.toString().replace(/\s/g,'');
+    if (clean.startsWith('0')) 
       clean = '233' + clean.substring(1);
-    }
     return 'https://wa.me/' + clean;
   }
 
   function formatCall(phone) {
-    if (!phone) return '#';
-    return 'tel:0' + phone.toString().replace(/^233/, '');
+    var clean = phone.toString().replace(/\s/g,'');
+    if (!clean.startsWith('0')) clean = '0' + clean;
+    return 'tel:' + clean;
   }
   
   // JSONP Fetch Wrapper
@@ -799,8 +798,8 @@
           <p><strong>Collected:</strong> GHS ${amt.toFixed(2)}</p>
           <div style="font-size:24px; text-align:right;">${status}</div>
           <div style="display:flex;gap:10px;margin-top:15px;">
-            <a href="${formatCall('0200000000')}" style="flex:1;padding:8px;background:#006B3F;color:white;border-radius:6px;text-align:center;text-decoration:none;font-weight:600;font-size:12px;">📞 Call</a>
-            <a href="${formatWhatsApp('0200000000')}" target="_blank" style="flex:1;padding:8px;background:#25D366;color:white;border-radius:6px;text-align:center;text-decoration:none;font-weight:600;font-size:12px;">💬 WhatsApp</a>
+            <button disabled style="flex:1;padding:8px;background:#ccc;color:#666;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:not-allowed;">📞 Call Supervisor</button>
+            <button disabled style="flex:1;padding:8px;background:#ccc;color:#666;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:not-allowed;">💬 WhatsApp Supervisor</button>
           </div>
         </div>
       `;
@@ -850,7 +849,7 @@
       if (phone) {
         actions = `<div style="display:flex; gap:5px;">
           <a href="${formatCall(phone)}" style="padding:4px 8px;background:#006B3F;color:white;border-radius:4px;text-decoration:none;font-size:12px;">📞</a>
-          <a href="${formatWhatsApp(phone)}" target="_blank" style="padding:4px 8px;background:#25D366;color:white;border-radius:4px;text-decoration:none;font-size:12px;">💬</a>
+          <a href="${formatWhatsApp(phone)}" target="_blank" style="padding:4px 8px;background:#006B3F;color:white;border-radius:4px;text-decoration:none;font-size:12px;">💬</a>
         </div>`;
       }
       
@@ -896,13 +895,27 @@
     let html = '';
     rows.slice(0, 100).forEach(r => { // limit 100 for perf in dom
       let stat = r.delivered === 'yes' ? '<span class="badge badge-green">Delivered</span>' : '<span class="badge badge-red">Failed</span>';
-      html += `<tr>
+      
+      let phone = '';
+      if (supervisorData[r.sup]) {
+        let col = supervisorData[r.sup].collectors.find(x => x.name === r.coll);
+        if (col) phone = col.phone;
+      }
+      let cBtn = `<a href="${formatCall(phone)}" style="padding:4px 10px;background:#006B3F;color:white;border-radius:4px;text-decoration:none;font-size:12px;margin-right:5px;">📞 Call Collector</a>`;
+      let wBtn = `<a href="${formatWhatsApp(phone)}" target="_blank" style="padding:4px 10px;background:#25D366;color:white;border-radius:4px;text-decoration:none;font-size:12px;">💬 WhatsApp</a>`;
+
+      html += `<tr onclick="const n=this.nextElementSibling; n.style.display = n.style.display==='none' ? 'table-row' : 'none';" style="cursor:pointer;" title="Click to view contact options">
         <td>${r.date}</td><td>${r.sup}</td><td>${r.coll}</td>
         <td><strong>${r.accountNumber}</strong></td><td>${r.useType}</td><td>${r.billAmount}</td>
         <td>${stat}</td><td>${r.ratepayerName || '-'}</td>
         <td>${r.amountPaid ? 'GHS '+r.amountPaid : '-'}</td>
         <td>${r.modeOfPayment || '-'}</td>
         <td>${r.failureReason || r.otherReason || '-'}</td>
+      </tr>
+      <tr style="background:#f8fafc; display:none;">
+        <td colspan="11" style="padding:10px;">
+          <strong>Contact ${r.coll}:</strong> ${cBtn} ${wBtn}
+        </td>
       </tr>`;
     });
     document.querySelector('#bills-table tbody').innerHTML = html || '<tr><td colspan="11">No bills found</td></tr>';

@@ -4,7 +4,7 @@ Built for IGC/ISSER University of Ghana.
 
 ## Pages
 - `/` — Supervisor entry app (mobile)
-- `/dashboard.html` — Research dashboard (PIN: 2500)
+- `/dashboard.html` — Research dashboard 
 
 ## Stack
 HTML/CSS/JS · Google Apps Script · Google Sheets · GitHub Pages
