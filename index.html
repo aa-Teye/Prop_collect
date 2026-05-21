@@ -600,8 +600,10 @@
       return;
     }
     
-    console.log('Selected collector:', currentCollector);
-    console.log('Bills found:', billsData[currentCollector.name]);
+    console.log('Supervisor:', currentSupervisor);
+    console.log('Collector:', currentCollector.name);
+    console.log('Date:', document.getElementById('date-select').value);
+    console.log('Bills:', billsData[currentCollector.name]);
 
     document.getElementById('s2-collector-info').innerText = 
       `Unit ${currentCollector.unit} — ${currentCollector.name}`;
@@ -622,7 +624,7 @@
       });
     }
     
-    updateTotals();
+    // updateTotals(); // undefined function was blocking progression
     showScreen('screen-step2');
   }
 
