@@ -319,6 +319,7 @@
               <th>Name</th><th>Unit</th><th>Supervisor</th>
               <th>Bills</th><th>Delivered</th><th>Failed</th>
               <th>Rate %</th><th>Amount (GHS)</th><th>Status</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -432,6 +433,96 @@
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwRjZS5WZqw0XCu6w6Vd-VrMhQP8kkkMpRb3qVoaHqdWo5cQzRtwbEXDCluj7pzoOMf/exec';
   let allLogs = [];
   let charts = {};
+  
+  const supervisorData = {
+    "Felix Abevi Vifah": {
+      unit: "Collection Units 1-21",
+      collectors: [
+        {name:"Adjei Messiah", unit:1, phone:"505516587"},
+        {name:"Ali Mohammed", unit:2, phone:"548208732"},
+        {name:"Felicia Gyamfi", unit:3, phone:"244287608"},
+        {name:"David Mensah", unit:4, phone:"543495099"},
+        {name:"Emmanuel Anka Forson", unit:5, phone:"556251256"},
+        {name:"Kofi Anomansah", unit:6, phone:"549006409"},
+        {name:"Esther Amatey", unit:7, phone:"248137317"},
+        {name:"Evans Nii Tetteh Badger", unit:8, phone:"550999542"},
+        {name:"Faustina Awiah Banlogo", unit:9, phone:"244495859"},
+        {name:"Felicia Dakoury", unit:10, phone:"244523193"},
+        {name:"Happiana Maku Pinto", unit:11, phone:"249037227"},
+        {name:"Hellen Agbeyeyeye", unit:12, phone:"552171437"},
+        {name:"Isaac Awarful", unit:13, phone:"557136805"},
+        {name:"Laud Yartey", unit:14, phone:"572182088"},
+        {name:"Lydia Denkyi", unit:15, phone:"242077365"},
+        {name:"Meshack Kwaku Adjei", unit:16, phone:"247569414"},
+        {name:"Mr. Joseph Adjei Adjetey", unit:17, phone:"244029287"},
+        {name:"Enock Mensah Wonkyi", unit:18, phone:"530295207"},
+        {name:"Nyarko Deborah", unit:19, phone:"533282741"},
+        {name:"Paul Okoe Tetteh", unit:20, phone:"557438213"},
+        {name:"Prince Antwi", unit:21, phone:"270956124"}
+      ]
+    },
+    "Linda Arthur": {
+      unit: "Collection Units 22-42",
+      collectors: [
+        {name:"Prince Opoku", unit:22, phone:"550766676"},
+        {name:"Raphael Darpoh", unit:23, phone:"244832930"},
+        {name:"Reuben Quarcoo", unit:24, phone:"561577884"},
+        {name:"Sandra Lartey", unit:25, phone:"544049176"},
+        {name:"Shadrack Akakpo", unit:26, phone:"541110048"},
+        {name:"Stephany Klutse", unit:27, phone:"241919886"},
+        {name:"Thomas Bentum Yankey", unit:28, phone:"264464464"},
+        {name:"Clement Elorm Aponi", unit:29, phone:"548334994"},
+        {name:"Emmanuella Owusu Ansah", unit:30, phone:"256476863"},
+        {name:"Ruth Lartey", unit:31, phone:"593684135"},
+        {name:"Veronica Yanney", unit:32, phone:"553470895"},
+        {name:"Wilhelmina Appiah", unit:33, phone:"546691051"},
+        {name:"Elizabeth Esi Amegashie", unit:34, phone:"554592808"},
+        {name:"Ernest Brobbey", unit:35, phone:"558290185"},
+        {name:"Priscilla Ofosu", unit:36, phone:"0546733244"},
+        {name:"Charles Nii Addy", unit:37, phone:"558288060"},
+        {name:"Nana Korankyewa Hanson", unit:38, phone:"240014670"},
+        {name:"Josephine Techie-Menson", unit:39, phone:"243648676"},
+        {name:"Theophilus Nana Gyimah", unit:40, phone:"545994109"},
+        {name:"Felicia Bekoe", unit:41, phone:"558220809"},
+        {name:"Sule Marfo", unit:42, phone:"553446246"}
+      ]
+    },
+    "Afua Tenkorang": {
+      unit: "Collection Units 43-58",
+      collectors: [
+        {name:"Clifford Kwesi Amoako-Essel", unit:43, phone:"244949668"},
+        {name:"Bashir Mohammed Saeed", unit:44, phone:"503817056"},
+        {name:"Nancy Oppong", unit:45, phone:"248688627"},
+        {name:"Felix Owusu", unit:46, phone:"544694748"},
+        {name:"Martha Larkotey", unit:47, phone:"244497766"},
+        {name:"Joseph Martey-Korley", unit:48, phone:"243759191"},
+        {name:"Bismark Twumasi", unit:49, phone:"240310709"},
+        {name:"Victoria Yartey", unit:50, phone:"552732342"},
+        {name:"Michael Anang", unit:51, phone:"540555095"},
+        {name:"Reginald Kumah Johnson", unit:52, phone:"245593278"},
+        {name:"Prince Opoku Boampong", unit:53, phone:"244684896"},
+        {name:"John Tetteh", unit:54, phone:"547052205"},
+        {name:"Emmanuel Oppong Kojo", unit:55, phone:"546756904"},
+        {name:"Elizabeth Quartey Oyoe", unit:56, phone:"546696862"},
+        {name:"Henry Koranteng", unit:57, phone:"244082813"},
+        {name:"Nambo Michael", unit:58, phone:"550631175"}
+      ]
+    }
+  };
+  
+  function formatWhatsApp(phone) {
+    if (!phone) return '#';
+    var clean = phone.toString().replace(/\s/g, '');
+    if (clean.startsWith('0')) {
+      clean = '233' + clean.substring(1);
+    }
+    return 'https://wa.me/' + clean;
+  }
+
+  function formatCall(phone) {
+    if (!phone) return '#';
+    return 'tel:0' + phone.toString().replace(/^233/, '');
+  }
   
   // JSONP Fetch Wrapper
   function fetchData(action, callback) {
@@ -707,6 +798,10 @@
           <p><strong>Delivery Rate:</strong> ${rate}%</p>
           <p><strong>Collected:</strong> GHS ${amt.toFixed(2)}</p>
           <div style="font-size:24px; text-align:right;">${status}</div>
+          <div style="display:flex;gap:10px;margin-top:15px;">
+            <a href="${formatCall('0200000000')}" style="flex:1;padding:8px;background:#006B3F;color:white;border-radius:6px;text-align:center;text-decoration:none;font-weight:600;font-size:12px;">📞 Call</a>
+            <a href="${formatWhatsApp('0200000000')}" target="_blank" style="flex:1;padding:8px;background:#25D366;color:white;border-radius:6px;text-align:center;text-decoration:none;font-weight:600;font-size:12px;">💬 WhatsApp</a>
+          </div>
         </div>
       `;
     }
@@ -745,15 +840,30 @@
                    rate >= 40 ? '<span class="badge badge-yellow">Fair</span>' : 
                    '<span class="badge badge-red">Poor</span>';
                    
+      let phone = '';
+      if (supervisorData[c.sup]) {
+        let col = supervisorData[c.sup].collectors.find(x => x.name === c.name);
+        if (col) phone = col.phone;
+      }
+      
+      let actions = '';
+      if (phone) {
+        actions = `<div style="display:flex; gap:5px;">
+          <a href="${formatCall(phone)}" style="padding:4px 8px;background:#006B3F;color:white;border-radius:4px;text-decoration:none;font-size:12px;">📞</a>
+          <a href="${formatWhatsApp(phone)}" target="_blank" style="padding:4px 8px;background:#25D366;color:white;border-radius:4px;text-decoration:none;font-size:12px;">💬</a>
+        </div>`;
+      }
+      
       html += `<tr>
         <td><strong>${c.name}</strong></td><td>Unit ${c.unit}</td><td>${c.sup}</td>
         <td>${c.bills}</td><td>${c.deliv}</td><td>${c.failed}</td>
         <td>${rate}%</td><td>GHS ${c.amt.toFixed(2)}</td>
         <td><small>${new Date(c.last).toLocaleDateString()}</small></td>
         <td>${status}</td>
+        <td>${actions}</td>
       </tr>`;
     });
-    document.querySelector('#collectors-table tbody').innerHTML = html || '<tr><td colspan="10">No data found</td></tr>';
+    document.querySelector('#collectors-table tbody').innerHTML = html || '<tr><td colspan="11">No data found</td></tr>';
   }
 
   function renderBillsTable() {

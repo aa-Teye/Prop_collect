@@ -494,6 +494,20 @@
   let currentCollector = null;
   let formBills = [];
   
+  function formatWhatsApp(phone) {
+    if (!phone) return '#';
+    var clean = phone.toString().replace(/\s/g, '');
+    if (clean.startsWith('0')) {
+      clean = '233' + clean.substring(1);
+    }
+    return 'https://wa.me/' + clean;
+  }
+
+  function formatCall(phone) {
+    if (!phone) return '#';
+    return 'tel:0' + phone.toString().replace(/^233/, '');
+  }
+  
   // Init Landing Page
   function initLanding() {
     const list = document.getElementById('supervisors-list');
@@ -561,8 +575,25 @@
     console.log('Selected collector:', currentCollector);
     console.log('Bills found:', billsData[currentCollector.name]);
 
-    document.getElementById('s2-collector-info').innerText = 
-      `Unit ${currentCollector.unit} — ${currentCollector.name}`;
+    const callLink = formatCall(currentCollector.phone);
+    const waLink = formatWhatsApp(currentCollector.phone);
+
+    document.getElementById('s2-collector-info').innerHTML = 
+      `Unit ${currentCollector.unit} — ${currentCollector.name}
+      <div style="display:flex;gap:10px;margin-top:10px;">
+        <a href="${callLink}" style="
+          flex:1;padding:10px;background:#006B3F;
+          color:white;border-radius:10px;text-align:center;
+          text-decoration:none;font-weight:700;font-size:14px;">
+          📞 Call
+        </a>
+        <a href="${waLink}" target="_blank" style="
+          flex:1;padding:10px;background:#25D366;
+          color:white;border-radius:10px;text-align:center;
+          text-decoration:none;font-weight:700;font-size:14px;">
+          💬 WhatsApp
+        </a>
+      </div>`;
       
     const container = document.getElementById('bills-container');
     container.innerHTML = '';
