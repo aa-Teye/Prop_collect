@@ -633,15 +633,16 @@
     }
   }
 
-  window.onload = function() {
+  window.addEventListener('DOMContentLoaded', function() {
     const role = sessionStorage.getItem('propcollect_role');
     const name = sessionStorage.getItem('propcollect_name');
     if (role && name) {
       currentUserRole = role;
       currentUserName = name;
+      document.getElementById('login-screen').style.display = 'none';
       proceedToApp();
     }
-  };
+  });
 
   function loadData() {
     const cached = localStorage.getItem('propcollect_data');
@@ -810,8 +811,27 @@
   function renderCollectorsTable() {
     const search = document.getElementById('coll-search').value.toLowerCase();
     
-    // Aggregate by collector
     let cMap = {};
+    
+    if (currentUserRole === 'supervisor' && supervisorData[currentUserName]) {
+      supervisorData[currentUserName].collectors.forEach(col => {
+        cMap[col.name] = {
+          name: col.name, unit: col.unit, sup: currentUserName,
+          bills:0, deliv:0, failed:0, amt:0, last: null
+        };
+      });
+    } else if (currentUserRole === 'researcher') {
+      for (const [supName, data] of Object.entries(supervisorData)) {
+        data.collectors.forEach(col => {
+          cMap[col.name] = {
+            name: col.name, unit: col.unit, sup: supName,
+            bills:0, deliv:0, failed:0, amt:0, last: null
+          };
+        });
+      }
+    }
+
+    // Aggregate by collector
     getFilteredLogs().forEach(l => {
       if (!cMap[l.collector]) {
         cMap[l.collector] = {
@@ -824,7 +844,7 @@
       c.deliv += l.totalDelivered || 0;
       c.failed += l.totalFailed || 0;
       c.amt += l.totalAmountCollected || 0;
-      if (new Date(l.submissionTime) > new Date(c.last)) c.last = l.submissionTime;
+      if (!c.last || new Date(l.submissionTime) > new Date(c.last)) c.last = l.submissionTime;
     });
     
     let arr = Object.values(cMap);
@@ -857,7 +877,7 @@
         <td><strong>${c.name}</strong></td><td>Unit ${c.unit}</td><td>${c.sup}</td>
         <td>${c.bills}</td><td>${c.deliv}</td><td>${c.failed}</td>
         <td>${rate}%</td><td>GHS ${c.amt.toFixed(2)}</td>
-        <td><small>${new Date(c.last).toLocaleDateString()}</small></td>
+        <td><small>${c.last ? new Date(c.last).toLocaleDateString() : 'N/A'}</small></td>
         <td>${status}</td>
         <td>${actions}</td>
       </tr>`;
