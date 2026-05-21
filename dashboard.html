@@ -424,6 +424,23 @@
         <button class="btn" onclick="localStorage.clear(); alert('Cache cleared. Reloading...'); location.reload();">Clear Cache</button>
       </div>
     </div>
+    
+    <div class="card" style="margin-top:20px; max-width:500px;">
+      <h3>Supervisor Contacts</h3>
+      <div class="form-group" style="margin-bottom:15px;">
+        <label style="display:block; margin-bottom:5px; font-weight:600;">Felix Abevi Vifah</label>
+        <input type="text" id="phone-felix" placeholder="e.g. 0244123456" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+      </div>
+      <div class="form-group" style="margin-bottom:15px;">
+        <label style="display:block; margin-bottom:5px; font-weight:600;">Linda Arthur</label>
+        <input type="text" id="phone-linda" placeholder="e.g. 0244123456" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+      </div>
+      <div class="form-group" style="margin-bottom:15px;">
+        <label style="display:block; margin-bottom:5px; font-weight:600;">Afua Tenkorang</label>
+        <input type="text" id="phone-afua" placeholder="e.g. 0244123456" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px;">
+      </div>
+      <button class="btn btn-green" onclick="saveSupervisorPhones()">Save Contacts</button>
+    </div>
   </div>
 
 </div>
@@ -682,6 +699,28 @@
     document.getElementById('tab-title').innerText = titles[tabId];
     
     if (tabId === 'analytics') renderCharts();
+    if (tabId === 'settings') loadSupervisorPhones();
+  }
+
+  function saveSupervisorPhones() {
+    const p1 = document.getElementById('phone-felix').value.trim();
+    const p2 = document.getElementById('phone-linda').value.trim();
+    const p3 = document.getElementById('phone-afua').value.trim();
+    
+    localStorage.setItem('sup_phone_Felix Abevi Vifah', p1);
+    localStorage.setItem('sup_phone_Linda Arthur', p2);
+    localStorage.setItem('sup_phone_Afua Tenkorang', p3);
+    
+    alert('Supervisor contacts saved!');
+    if (document.getElementById('tab-supervisors').classList.contains('active')) {
+      renderSupervisors();
+    }
+  }
+
+  function loadSupervisorPhones() {
+    document.getElementById('phone-felix').value = localStorage.getItem('sup_phone_Felix Abevi Vifah') || '';
+    document.getElementById('phone-linda').value = localStorage.getItem('sup_phone_Linda Arthur') || '';
+    document.getElementById('phone-afua').value = localStorage.getItem('sup_phone_Afua Tenkorang') || '';
   }
 
   function getFilteredLogs() {
@@ -789,6 +828,19 @@
       let rate = bills > 0 ? Math.round((deliv/bills)*100) : 0;
       let status = rate >= 70 ? '🟢' : rate >= 40 ? '🟡' : '🔴';
       
+      let phone = localStorage.getItem('sup_phone_' + s);
+      let buttonsHtml = '';
+      if (phone && phone.trim() !== '') {
+        buttonsHtml = `
+          <a href="${formatCall(phone)}" style="flex:1;padding:8px;background:#006B3F;color:white;border-radius:6px;text-align:center;text-decoration:none;font-weight:600;font-size:12px;">📞 Call Supervisor</a>
+          <a href="${formatWhatsApp(phone)}" target="_blank" style="flex:1;padding:8px;background:#25D366;color:white;border-radius:6px;text-align:center;text-decoration:none;font-weight:600;font-size:12px;">💬 WhatsApp Supervisor</a>
+        `;
+      } else {
+        buttonsHtml = `
+          <button onclick="alert('Phone number not yet added for this supervisor.\\nPlease update in Settings.')" style="flex:1;padding:8px;background:#ccc;color:#666;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;">No number yet</button>
+        `;
+      }
+      
       html += `
         <div class="card">
           <h3 style="margin-top:0;">${s}</h3>
@@ -799,8 +851,7 @@
           <p><strong>Collected:</strong> GHS ${amt.toFixed(2)}</p>
           <div style="font-size:24px; text-align:right;">${status}</div>
           <div style="display:flex;gap:10px;margin-top:15px;">
-            <button disabled style="flex:1;padding:8px;background:#ccc;color:#666;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:not-allowed;">📞 Call Supervisor</button>
-            <button disabled style="flex:1;padding:8px;background:#ccc;color:#666;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:not-allowed;">💬 WhatsApp Supervisor</button>
+            ${buttonsHtml}
           </div>
         </div>
       `;
