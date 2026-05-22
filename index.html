@@ -647,33 +647,29 @@
 
   function loadCollectorBills(collectorName, unit) {
     var loadingEl = document.getElementById('billsLoading');
-    var container = document.getElementById('bills-container');
+    var container = document.getElementById('billsContainer');
     
     if (loadingEl) loadingEl.style.display = 'block';
     if (container) container.innerHTML = '';
-    window.state.bills = [];
-    
+    state.bills = [];
+  
     var cbName = '_bills_' + Date.now();
     var called = false;
-    
-    // Define callback FIRST before creating script
+  
     window[cbName] = function(data) {
       if (called) return;
       called = true;
       if (loadingEl) loadingEl.style.display = 'none';
-      
-      // Clean up script tag
-      var oldScript = document.getElementById('billsScript');
-      if (oldScript) document.body.removeChild(oldScript);
+      var old = document.getElementById('billsScript');
+      if (old && old.parentNode) old.parentNode.removeChild(old);
       delete window[cbName];
-      
       if (data && data.bills && data.bills.length > 0) {
-        window.state.bills = data.bills;
+        state.bills = data.bills;
         renderBillCards();
       } else {
-        window.state.bills = [];
+        state.bills = [];
         if (container) {
-          container.innerHTML = 
+          container.innerHTML =
             '<div style="text-align:center;padding:40px;color:#64748b;">' +
             '<div style="font-size:32px">📋</div>' +
             '<p>No bills found for this collector.</p>' +
@@ -681,25 +677,22 @@
         }
       }
     };
-    
-    // Set timeout BEFORE appending script
+  
     setTimeout(function() {
       if (!called) window[cbName]({bills:[]});
     }, 15000);
-    
-    // Create and append script LAST
+  
+    var old = document.getElementById('billsScript');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+  
     var script = document.createElement('script');
     script.id = 'billsScript';
-    script.src = SCRIPT_URL + 
+    script.src = SCRIPT_URL +
       '?action=getBills' +
       '&collector=' + encodeURIComponent(collectorName) +
       '&unit=' + unit +
       '&callback=' + cbName;
-    
-    // Remove old script if exists
-    var existing = document.getElementById('billsScript');
-    if (existing) document.body.removeChild(existing);
-    
+  
     document.body.appendChild(script);
   }
 
