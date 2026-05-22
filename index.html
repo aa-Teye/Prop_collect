@@ -405,10 +405,10 @@
       </div>
     </div>
     
-    <div id="progress-container" class="progress-container" style="display:none;">
-      <div class="progress-text" id="progress-text">0 of 0 bills submitted</div>
+    <div id="billProgress" class="progress-container" style="display:none;">
+      <div class="progress-text" id="progressText">0 of 0 bills submitted</div>
       <div class="progress-bar-bg">
-        <div class="progress-bar-fill" id="progress-fill"></div>
+        <div class="progress-bar-fill" id="progressBar"></div>
       </div>
     </div>
     
@@ -535,6 +535,9 @@
   let currentCollector = null;
   let formBills = [];
   
+  var totalBills = 0;
+  var submittedCount = 0;
+  
   // Init Landing Page
   function initLanding() {
     const list = document.getElementById('supervisors-list');
@@ -616,7 +619,39 @@
       return;
     }
     currentCollector = JSON.parse(val);
-    document.getElementById('bill-count-display').innerText = '...';
+    
+    var cacheKey = 'bills_' + currentCollector.name + '_' + currentCollector.unit;
+    var cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        var bills = JSON.parse(cached);
+        document.getElementById('bill-count-display').innerText = 'Loading ' + bills.length + ' bills...';
+        return;
+      } catch(e) {}
+    }
+    
+    document.getElementById('bill-count-display').innerText = 'Loading...';
+    
+    // Background prefetch so cache is warm
+    var collectorName = currentCollector.name;
+    var unit = currentCollector.unit;
+    var ts = Date.now();
+    var cbName = 'billsCb' + ts;
+    window[cbName] = function(data) {
+      if (data && data.bills) {
+        sessionStorage.setItem(cacheKey, JSON.stringify(data.bills));
+        if (currentCollector && currentCollector.name === collectorName && currentCollector.unit === unit) {
+          document.getElementById('bill-count-display').innerText = 'Loading ' + data.bills.length + ' bills...';
+        }
+      }
+    };
+    var s = document.createElement('script');
+    s.src = SCRIPT_URL +
+      '?action=getBills' +
+      '&collector=' + encodeURIComponent(collectorName) +
+      '&unit=' + encodeURIComponent(unit) +
+      '&callback=' + cbName;
+    document.head.appendChild(s);
   }
 
   window.state = { bills: [] };
@@ -647,8 +682,36 @@
 
   function loadCollectorBills(collectorName, unit) {
     var loadingEl = document.getElementById('billsLoading');
-    var container = document.getElementById('billsContainer');
+    var container = document.getElementById('bills-container');
     
+    var cacheKey = 'bills_' + collectorName + '_' + unit;
+    var cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      try {
+        state.bills = JSON.parse(cached);
+        
+        totalBills = state.bills.length;
+        submittedCount = 0;
+        
+        var progressEl = document.getElementById('billProgress');
+        var progressBar = document.getElementById('progressBar');
+        var progressText = document.getElementById('progressText');
+        
+        if (progressEl) progressEl.style.display = 'block';
+        if (progressText) {
+          progressText.textContent = submittedCount + 
+            ' of ' + totalBills + ' bills submitted';
+        }
+        if (progressBar) {
+          progressBar.style.width = '0%';
+        }
+        
+        renderBillCards();
+        if (loadingEl) loadingEl.style.display = 'none';
+        return;
+      } catch(e) {}
+    }
+
     if (loadingEl) loadingEl.style.display = 'block';
     if (container) container.innerHTML = '';
     state.bills = [];
@@ -662,6 +725,27 @@
       if (loadingEl) loadingEl.style.display = 'none';
       if (data && data.bills && data.bills.length > 0) {
         state.bills = data.bills;
+        
+        // Save to cache
+        var cacheKey = 'bills_' + collectorName + '_' + unit;
+        sessionStorage.setItem(cacheKey, JSON.stringify(data.bills));
+        
+        totalBills = state.bills.length;
+        submittedCount = 0;
+        
+        var progressEl = document.getElementById('billProgress');
+        var progressBar = document.getElementById('progressBar');
+        var progressText = document.getElementById('progressText');
+        
+        if (progressEl) progressEl.style.display = 'block';
+        if (progressText) {
+          progressText.textContent = submittedCount + 
+            ' of ' + totalBills + ' bills submitted';
+        }
+        if (progressBar) {
+          progressBar.style.width = '0%';
+        }
+        
         renderBillCards();
       } else {
         if (container) {
@@ -765,6 +849,7 @@
       alert("This bill is already in your current list.");
       return;
     }
+    totalBills++;
     addBillToUI(bill);
     document.getElementById('search-result').style.display = 'none';
     document.getElementById('bill-search-input').value = '';
@@ -793,7 +878,8 @@
     const noMsg = document.getElementById('no-bills-msg');
     if (noMsg) noMsg.remove();
     
-    document.getElementById('progress-container').style.display = 'block';
+    var progressEl = document.getElementById('billProgress');
+    if (progressEl) progressEl.style.display = 'block';
     
     const card = document.createElement('div');
     card.className = 'bill-card card';
@@ -912,13 +998,24 @@
   }
 
   function updateProgress() {
-    const total = formBills.length;
-    let sub = 0;
-    formBills.forEach(b => { if(b.submitted) sub++; });
+    var progressEl = document.getElementById('billProgress');
+    var progressText = document.getElementById('progressText');
+    var progressBar = document.getElementById('progressBar');
     
-    document.getElementById('progress-text').innerText = `${sub} of ${total} bills submitted`;
-    const pct = total === 0 ? 0 : (sub / total) * 100;
-    document.getElementById('progress-fill').style.width = pct + '%';
+    if (progressEl) progressEl.style.display = 'block';
+    
+    totalBills = formBills.length;
+    submittedCount = 0;
+    formBills.forEach(function(b) { if (b.submitted) submittedCount++; });
+    
+    if (progressText) {
+      progressText.textContent = submittedCount + 
+        ' of ' + totalBills + ' bills submitted';
+    }
+    if (progressBar) {
+      var pct = totalBills === 0 ? 0 : Math.round((submittedCount / totalBills) * 100);
+      progressBar.style.width = pct + '%';
+    }
   }
 
   let currentReviewIdx = -1;
@@ -1044,7 +1141,17 @@
       document.getElementById(`form-content-${idx}`).style.display = 'none';
       document.getElementById(`status-badge-${idx}`).style.display = 'block';
       
-      updateProgress();
+      submittedCount++;
+      var pct = Math.round((submittedCount/totalBills)*100);
+      var progressText = document.getElementById('progressText');
+      var progressBar = document.getElementById('progressBar');
+      if (progressText) {
+        progressText.textContent = submittedCount + 
+          ' of ' + totalBills + ' bills submitted';
+      }
+      if (progressBar) {
+        progressBar.style.width = pct + '%';
+      }
       showToast('Bill Submitted Successfully!');
     }).catch(err => {
       console.error(err);
