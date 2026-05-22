@@ -619,42 +619,20 @@
       return;
     }
     currentCollector = JSON.parse(val);
+    document.getElementById('bill-count-display').innerText = '160';
     
-    var cacheKey = 'bills_' + currentCollector.name + '_' + currentCollector.unit;
-    var cached = sessionStorage.getItem(cacheKey);
-    if (cached) {
-      try {
-        var bills = JSON.parse(cached);
-        document.getElementById('bill-count-display').innerText = 'Loading ' + bills.length + ' bills...';
-        return;
-      } catch(e) {}
-    }
-    
-    document.getElementById('bill-count-display').innerText = 'Loading...';
-    
-    // Background prefetch so cache is warm
-    var collectorName = currentCollector.name;
-    var unit = currentCollector.unit;
-    var ts = Date.now();
-    var cbName = 'billsCb' + ts;
-    window[cbName] = function(data) {
-      if (data && data.bills) {
-        sessionStorage.setItem(cacheKey, JSON.stringify(data.bills));
-        if (currentCollector && currentCollector.name === collectorName && currentCollector.unit === unit) {
-          document.getElementById('bill-count-display').innerText = 'Loading ' + data.bills.length + ' bills...';
-        }
-      }
-    };
-    var s = document.createElement('script');
-    s.src = SCRIPT_URL +
-      '?action=getBills' +
-      '&collector=' + encodeURIComponent(collectorName) +
-      '&unit=' + encodeURIComponent(unit) +
-      '&callback=' + cbName;
-    document.head.appendChild(s);
+    // Preload bills in background immediately when collector is selected from dropdown
+    loadCollectorBills(currentCollector.name, currentCollector.unit);
   }
 
-  window.state = { bills: [] };
+  window.state = { 
+    bills: [],
+    loadedCollectorName: null,
+    loadedCollectorUnit: null,
+    loadingCollectorName: null,
+    loadingCollectorUnit: null,
+    onBillsLoaded: null
+  };
 
   function goToStep2() {
     if (!currentCollector) {
@@ -675,12 +653,65 @@
     document.getElementById('bill-search-input').value = '';
     
     formBills = [];
-    loadCollectorBills(currentCollector.name, currentCollector.unit);
     
+    var loadingEl = document.getElementById('billsLoading');
     showScreen('screen-step2');
+
+    // Check if already loaded
+    if (window.state.loadedCollectorName === currentCollector.name && window.state.loadedCollectorUnit === currentCollector.unit) {
+      // Show them instantly
+      if (loadingEl) loadingEl.style.display = 'none';
+      
+      totalBills = 160;
+      submittedCount = 0;
+      
+      var progressEl = document.getElementById('billProgress');
+      var progressBar = document.getElementById('progressBar');
+      var progressText = document.getElementById('progressText');
+      
+      if (progressEl) progressEl.style.display = 'block';
+      if (progressText) {
+        progressText.textContent = submittedCount + 
+          ' of ' + totalBills + ' bills submitted';
+      }
+      if (progressBar) {
+        progressBar.style.width = '0%';
+      }
+      
+      renderBillCards();
+    } else {
+      // If still loading, show spinner and wait
+      if (loadingEl) loadingEl.style.display = 'block';
+      
+      // Register callback to render when loaded
+      window.state.onBillsLoaded = function() {
+        if (loadingEl) loadingEl.style.display = 'none';
+        renderBillCards();
+      };
+      
+      // If it hasn't even started loading, start it now
+      if (window.state.loadingCollectorName !== currentCollector.name || window.state.loadingCollectorUnit !== currentCollector.unit) {
+        loadCollectorBills(currentCollector.name, currentCollector.unit);
+      }
+    }
   }
 
   function loadCollectorBills(collectorName, unit) {
+    // If already loaded for this collector, do nothing
+    if (window.state.loadedCollectorName === collectorName && window.state.loadedCollectorUnit === unit) {
+      return;
+    }
+    // If already loading for this collector, do nothing
+    if (window.state.loadingCollectorName === collectorName && window.state.loadingCollectorUnit === unit) {
+      return;
+    }
+
+    // Set loading state
+    window.state.loadingCollectorName = collectorName;
+    window.state.loadingCollectorUnit = unit;
+    window.state.loadedCollectorName = null;
+    window.state.loadedCollectorUnit = null;
+
     var loadingEl = document.getElementById('billsLoading');
     var container = document.getElementById('bills-container');
     
@@ -688,9 +719,15 @@
     var cached = sessionStorage.getItem(cacheKey);
     if (cached) {
       try {
-        state.bills = JSON.parse(cached);
+        window.state.bills = JSON.parse(cached);
         
-        totalBills = state.bills.length;
+        // Mark as loaded
+        window.state.loadedCollectorName = collectorName;
+        window.state.loadedCollectorUnit = unit;
+        window.state.loadingCollectorName = null;
+        window.state.loadingCollectorUnit = null;
+
+        totalBills = 160;
         submittedCount = 0;
         
         var progressEl = document.getElementById('billProgress');
@@ -706,15 +743,27 @@
           progressBar.style.width = '0%';
         }
         
-        renderBillCards();
-        if (loadingEl) loadingEl.style.display = 'none';
+        // If Step 2 screen is active, render immediately
+        if (document.getElementById('screen-step2').classList.contains('active')) {
+          renderBillCards();
+          if (loadingEl) loadingEl.style.display = 'none';
+        }
+
+        // Call callback if exists
+        if (window.state.onBillsLoaded) {
+          window.state.onBillsLoaded();
+          window.state.onBillsLoaded = null;
+        }
         return;
       } catch(e) {}
     }
 
-    if (loadingEl) loadingEl.style.display = 'block';
-    if (container) container.innerHTML = '';
-    state.bills = [];
+    // If Step 2 screen is active, show loading spinner
+    if (document.getElementById('screen-step2').classList.contains('active')) {
+      if (loadingEl) loadingEl.style.display = 'block';
+      if (container) container.innerHTML = '';
+    }
+    window.state.bills = [];
   
     var ts = Date.now();
     var cbName = 'billsCb' + ts;
@@ -722,15 +771,26 @@
   
     window[cbName] = function(data) {
       called = true;
-      if (loadingEl) loadingEl.style.display = 'none';
+      
+      // If Step 2 screen is active, hide loading spinner
+      if (document.getElementById('screen-step2').classList.contains('active')) {
+        if (loadingEl) loadingEl.style.display = 'none';
+      }
+
       if (data && data.bills && data.bills.length > 0) {
-        state.bills = data.bills;
+        window.state.bills = data.bills;
         
         // Save to cache
         var cacheKey = 'bills_' + collectorName + '_' + unit;
         sessionStorage.setItem(cacheKey, JSON.stringify(data.bills));
         
-        totalBills = state.bills.length;
+        // Mark as loaded
+        window.state.loadedCollectorName = collectorName;
+        window.state.loadedCollectorUnit = unit;
+        window.state.loadingCollectorName = null;
+        window.state.loadingCollectorUnit = null;
+
+        totalBills = 160;
         submittedCount = 0;
         
         var progressEl = document.getElementById('billProgress');
@@ -746,29 +806,50 @@
           progressBar.style.width = '0%';
         }
         
-        renderBillCards();
-      } else {
-        if (container) {
-          container.innerHTML =
-            '<div style="text-align:center;padding:40px;">' +
-            '<p>No bills found.</p></div>';
+        // If Step 2 screen is active, render immediately
+        if (document.getElementById('screen-step2').classList.contains('active')) {
+          renderBillCards();
         }
+      } else {
+        window.state.loadedCollectorName = collectorName;
+        window.state.loadedCollectorUnit = unit;
+        window.state.loadingCollectorName = null;
+        window.state.loadingCollectorUnit = null;
+
+        if (document.getElementById('screen-step2').classList.contains('active')) {
+          if (container) {
+            container.innerHTML =
+              '<div style="text-align:center;padding:40px;">' +
+              '<p>No bills found.</p></div>';
+          }
+        }
+      }
+
+      // Call callback if exists
+      if (window.state.onBillsLoaded) {
+        window.state.onBillsLoaded();
+        window.state.onBillsLoaded = null;
       }
     };
   
     setTimeout(function() {
       if (!called) {
-        if (loadingEl) loadingEl.style.display = 'none';
-        if (container) {
-          container.innerHTML =
-            '<div style="text-align:center;padding:40px;">' +
-            '<p>Could not load bills. Check connection.</p>' +
-            '<button onclick="loadCollectorBills(\'' +
-            collectorName + '\',' + unit + ')"' +
-            ' style="padding:10px 20px;background:#006B3F;' +
-            'color:white;border:none;border-radius:8px;' +
-            'cursor:pointer;margin-top:10px;">🔄 Retry</button>' +
-            '</div>';
+        window.state.loadingCollectorName = null;
+        window.state.loadingCollectorUnit = null;
+        
+        if (document.getElementById('screen-step2').classList.contains('active')) {
+          if (loadingEl) loadingEl.style.display = 'none';
+          if (container) {
+            container.innerHTML =
+              '<div style="text-align:center;padding:40px;">' +
+              '<p>Could not load bills. Check connection.</p>' +
+              '<button onclick="loadCollectorBills(\'' +
+              collectorName + '\',' + unit + ')"' +
+              ' style="padding:10px 20px;background:#006B3F;' +
+              'color:white;border:none;border-radius:8px;' +
+              'cursor:pointer;margin-top:10px;">🔄 Retry</button>' +
+              '</div>';
+          }
         }
       }
     }, 12000);
@@ -849,7 +930,6 @@
       alert("This bill is already in your current list.");
       return;
     }
-    totalBills++;
     addBillToUI(bill);
     document.getElementById('search-result').style.display = 'none';
     document.getElementById('bill-search-input').value = '';
@@ -1004,7 +1084,7 @@
     
     if (progressEl) progressEl.style.display = 'block';
     
-    totalBills = formBills.length;
+    totalBills = 160;
     submittedCount = 0;
     formBills.forEach(function(b) { if (b.submitted) submittedCount++; });
     
