@@ -427,16 +427,33 @@
       <h3 style="margin-top:0; color:var(--navy); border-bottom: 2px solid var(--border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
         <span>📁 Level 1 — Raw Data</span>
       </h3>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-top: 15px;">
-        <button class="export-btn" onclick="exportLevel1CSV()">
-          <span>⬇ All Submissions CSV</span>
-        </button>
-        <button class="export-btn" onclick="exportLevel1Excel()">
-          <span>⬇ All Submissions Excel</span>
-        </button>
-        <button class="export-btn" onclick="exportLevel1CollectorCSV()">
-          <span>⬇ Collector Summary CSV</span>
-        </button>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-top: 15px;">
+        <div style="display: flex; flex-direction: column;">
+          <button class="export-btn" onclick="exportLevel1CSV()">
+            <span>⬇ All Submissions CSV</span>
+          </button>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-style: italic; line-height: 1.4;">
+            "Complete record of all bill delivery attempts. Best for Excel analysis."
+          </div>
+        </div>
+        
+        <div style="display: flex; flex-direction: column;">
+          <button class="export-btn" onclick="exportLevel1Excel()">
+            <span>⬇ All Submissions Excel</span>
+          </button>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-style: italic; line-height: 1.4;">
+            "Same data in 3 sheets: All Data, Delivered Only, Failed Only."
+          </div>
+        </div>
+        
+        <div style="display: flex; flex-direction: column;">
+          <button class="export-btn" onclick="exportLevel1CollectorCSV()">
+            <span>⬇ Collector Summary CSV</span>
+          </button>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-style: italic; line-height: 1.4;">
+            "One row per collector showing totals, delivery rate and revenue collected."
+          </div>
+        </div>
       </div>
     </div>
 
@@ -445,16 +462,33 @@
       <h3 style="margin-top:0; color:var(--navy); border-bottom: 2px solid var(--border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
         <span>📈 Level 2 — Analytical Reports</span>
       </h3>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-top: 15px;">
-        <button class="export-btn" onclick="exportLevel2DeliveryExcel()">
-          <span>⬇ Delivery Rate Report Excel</span>
-        </button>
-        <button class="export-btn" onclick="exportLevel2RevenueExcel()">
-          <span>⬇ Revenue Report Excel</span>
-        </button>
-        <button class="export-btn" onclick="exportLevel2FailureExcel()">
-          <span>⬇ Failure Analysis Excel</span>
-        </button>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-top: 15px;">
+        <div style="display: flex; flex-direction: column;">
+          <button class="export-btn" onclick="exportLevel2DeliveryExcel()">
+            <span>⬇ Delivery Rate Report Excel</span>
+          </button>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-style: italic; line-height: 1.4;">
+            "Delivery rates broken down by supervisor, collector, property type and day."
+          </div>
+        </div>
+        
+        <div style="display: flex; flex-direction: column;">
+          <button class="export-btn" onclick="exportLevel2RevenueExcel()">
+            <span>⬇ Revenue Report Excel</span>
+          </button>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-style: italic; line-height: 1.4;">
+            "Amount collected vs billed. Includes payment mode breakdown (cash/momo/cheque)."
+          </div>
+        </div>
+        
+        <div style="display: flex; flex-direction: column;">
+          <button class="export-btn" onclick="exportLevel2FailureExcel()">
+            <span>⬇ Failure Analysis Excel</span>
+          </button>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-style: italic; line-height: 1.4;">
+            "All failed deliveries with reasons. Useful for identifying problem areas."
+          </div>
+        </div>
       </div>
     </div>
 
@@ -463,13 +497,24 @@
       <h3 style="margin-top:0; color:var(--navy); border-bottom: 2px solid var(--border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
         <span>📋 Level 3 — Research Reports</span>
       </h3>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-top: 15px;">
-        <button class="export-btn" onclick="exportLevel3ExecutivePDF()">
-          <span>⬇ Executive Summary PDF</span>
-        </button>
-        <button class="export-btn" onclick="exportLevel3CollectorScorecardPDF()">
-          <span>⬇ Collector Scorecard PDF</span>
-        </button>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-top: 15px;">
+        <div style="display: flex; flex-direction: column;">
+          <button class="export-btn" onclick="exportLevel3ExecutivePDF()">
+            <span>⬇ Executive Summary PDF</span>
+          </button>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-style: italic; line-height: 1.4;">
+            "Ready-to-present report with key metrics, top performers and supervisor comparison."
+          </div>
+        </div>
+        
+        <div style="display: flex; flex-direction: column;">
+          <button class="export-btn" onclick="exportLevel3CollectorScorecardPDF()">
+            <span>⬇ Collector Scorecard PDF</span>
+          </button>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-style: italic; line-height: 1.4;">
+            "Individual performance report for each of the 69 collectors."
+          </div>
+        </div>
       </div>
     </div>
 
@@ -478,13 +523,24 @@
       <h3 style="margin-top:0; color:var(--navy); border-bottom: 2px solid var(--border); padding-bottom: 10px; display: flex; align-items: center; gap: 8px;">
         <span>🔬 Level 4 — Statistical Analysis</span>
       </h3>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-top: 15px;">
-        <button class="export-btn" onclick="exportLevel4SPSSCSV()">
-          <span>⬇ SPSS Ready CSV</span>
-        </button>
-        <button class="export-btn" onclick="exportLevel4CrossTabExcel()">
-          <span>⬇ Cross Tabulation Excel</span>
-        </button>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-top: 15px;">
+        <div style="display: flex; flex-direction: column;">
+          <button class="export-btn" onclick="exportLevel4SPSSCSV()">
+            <span>⬇ SPSS Ready CSV</span>
+          </button>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-style: italic; line-height: 1.4;">
+            "Coded numerical variables ready for SPSS or Stata statistical analysis. Includes variable codebook."
+          </div>
+        </div>
+        
+        <div style="display: flex; flex-direction: column;">
+          <button class="export-btn" onclick="exportLevel4CrossTabExcel()">
+            <span>⬇ Cross Tabulation Excel</span>
+          </button>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-style: italic; line-height: 1.4;">
+            "Statistical cross-tabs: Delivered vs Rate Type, Supervisor, Day and Payment Mode."
+          </div>
+        </div>
       </div>
     </div>
   </div>
