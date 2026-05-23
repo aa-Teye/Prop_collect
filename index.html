@@ -382,11 +382,11 @@
     
     <div class="form-group">
       <label style="color:white;">Select Collector</label>
-      <select id="collector-select" onchange="updateBillCount()"></select>
+      <select id="collectorSelect" onchange="updateBillCount()"></select>
     </div>
     <div class="form-group">
       <label style="color:white;">Date</label>
-      <input type="date" id="date-select">
+      <input type="date" id="dateInput">
     </div>
     
     <div class="card" style="text-align: center; background: #eef2ff; margin-bottom: 20px;">
@@ -618,13 +618,15 @@
   }
 
   function setupStep1() {
+    window.state.supervisor = currentSupervisor;
     document.getElementById('s1-supervisor-name').innerText = currentSupervisor;
-    const select = document.getElementById('collector-select');
+    const select = document.getElementById('collectorSelect');
     select.innerHTML = '<option value="">-- Select Collector --</option>';
     
     supervisorData[currentSupervisor].collectors.forEach(c => {
       const opt = document.createElement('option');
       opt.value = JSON.stringify(c);
+      opt.dataset.unit = c.unit;
       opt.innerText = `Unit ${c.unit} — ${c.name}`;
       select.appendChild(opt);
     });
@@ -639,7 +641,7 @@
   }
 
   function updateBillCount() {
-    const val = document.getElementById('collector-select').value;
+    const val = document.getElementById('collectorSelect').value;
     if (!val) {
       document.getElementById('bill-count-display').innerText = '0';
       currentCollector = null;
@@ -659,68 +661,66 @@
   };
 
   function goToStep2() {
-    if (!currentCollector) {
-      alert("Please select a collector.");
+    var state = window.state;
+    var collectorEl = document.getElementById('collectorSelect');
+    var dateEl = document.getElementById('dateInput');
+      
+    if (!collectorEl || !collectorEl.value) {
+      alert('Please select a collector');
       return;
     }
-    
-    console.log('Supervisor:', currentSupervisor);
-    console.log('Collector:', currentCollector.name);
-    console.log('Date:', document.getElementById('date-select').value);
+    if (!dateEl || !dateEl.value) {
+      alert('Please select a date');
+      return;
+    }
+
+    var selectedOption = collectorEl.options[collectorEl.selectedIndex];
+    state.collector = selectedOption.text.replace(/^Unit \d+ — /, '');
+    state.collectorUnit = selectedOption.dataset.unit || selectedOption.value;
+    state.date = dateEl.value;
+
+    var sup = supervisorData[state.supervisor];
+    if (sup && sup.collectors) {
+      var found = sup.collectors.find(function(c) {
+        return c.name === state.collector;
+      });
+      if (found) {
+        state.collectorPhone = found.phone;
+      }
+    }
+
+    // Keep global variables fully synchronized for searching and cross-checks
+    currentCollector = {
+      name: state.collector,
+      unit: state.collectorUnit,
+      phone: state.collectorPhone || ""
+    };
+    currentSupervisor = state.supervisor || currentSupervisor;
 
     document.getElementById('s2-collector-info').innerText = 
-      `Unit ${currentCollector.unit} — ${currentCollector.name}`;
-      
-    const container = document.getElementById('bills-container');
-    container.innerHTML = '';
-    
+      `Unit ${state.collectorUnit} — ${state.collector}`;
+
     var sInput = document.getElementById('billSearchInput');
     var sResult = document.getElementById('billSearchResult');
     if (sInput) sInput.value = '';
     if (sResult) sResult.innerHTML = '';
-    
-    formBills = [];
+
+    showScreen('screen-step2');
     
     var loadingEl = document.getElementById('billsLoading');
-    showScreen('screen-step2');
+    var container = document.getElementById('bills-container');
+      
+    if (loadingEl) loadingEl.style.display = 'block';
+    if (container) container.innerHTML = '';
+    state.bills = [];
+    formBills = [];
 
-    // Check if already loaded
-    if (window.state.loadedCollectorName === currentCollector.name && window.state.loadedCollectorUnit === currentCollector.unit) {
-      // Show them instantly
-      if (loadingEl) loadingEl.style.display = 'none';
-      
-      totalBills = 160;
-      submittedCount = 0;
-      
-      var progressEl = document.getElementById('billProgress');
-      var progressBar = document.getElementById('progressBar');
-      var progressText = document.getElementById('progressText');
-      
-      if (progressEl) progressEl.style.display = 'block';
-      if (progressText) {
-        progressText.textContent = submittedCount + 
-          ' of ' + totalBills + ' bills submitted';
-      }
-      if (progressBar) {
-        progressBar.style.width = '0%';
-      }
-      
-      renderBillCards();
-    } else {
-      // If still loading, show spinner and wait
-      if (loadingEl) loadingEl.style.display = 'block';
-      
-      // Register callback to render when loaded
-      window.state.onBillsLoaded = function() {
-        if (loadingEl) loadingEl.style.display = 'none';
-        renderBillCards();
-      };
-      
-      // If it hasn't even started loading, start it now
-      if (window.state.loadingCollectorName !== currentCollector.name || window.state.loadingCollectorUnit !== currentCollector.unit) {
-        loadCollectorBills(currentCollector.name, currentCollector.unit);
-      }
-    }
+    setTimeout(function() {
+      loadCollectorBills(
+        state.collector, 
+        state.collectorUnit
+      );
+    }, 300);
   }
 
 // ========================================
