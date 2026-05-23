@@ -726,37 +726,48 @@
 // ========================================
 // RELIABLE JSONP HELPER
 // ========================================
-function jsonpRequest(url, callback) {
-  var cbName = 'cb' + Date.now() + 
-    Math.floor(Math.random() * 9999);
+function jsonpRequest(url, callback, retryCount) {
+  retryCount = retryCount || 0;
+  var cbName = 'cb_' + Date.now() + 
+    '_' + Math.floor(Math.random() * 999999);
   var done = false;
-  
+
   window[cbName] = function(data) {
     if (done) return;
     done = true;
-    delete window[cbName];
+    if (window[cbName]) delete window[cbName];
     callback(null, data);
   };
-  
-  var script = document.createElement('script');
-  script.src = url + '&callback=' + cbName;
-  
-  script.onerror = function() {
-    if (!done) {
-      done = true;
-      delete window[cbName];
-      callback(new Error('Script load failed'));
-    }
-  };
-  
+
   setTimeout(function() {
     if (!done) {
       done = true;
-      delete window[cbName];
-      callback(new Error('Timeout'));
+      if (window[cbName]) delete window[cbName];
+      if (retryCount < 2) {
+        setTimeout(function() {
+          jsonpRequest(url, callback, retryCount + 1);
+        }, 500);
+      } else {
+        callback(new Error('Timeout'), null);
+      }
     }
-  }, 15000);
-  
+  }, 8000);
+
+  var script = document.createElement('script');
+  script.src = url + '&callback=' + cbName;
+  script.onerror = function() {
+    if (!done) {
+      done = true;
+      if (window[cbName]) delete window[cbName];
+      if (retryCount < 2) {
+        setTimeout(function() {
+          jsonpRequest(url, callback, retryCount + 1);
+        }, 500);
+      } else {
+        callback(new Error('Failed'), null);
+      }
+    }
+  };
   document.head.appendChild(script);
 }
 
@@ -982,7 +993,6 @@ function loadCollectorBills(collectorName, unit) {
       alert("Please fill Account Number and Bill Amount");
       return;
     }
-    
     addBillToForm({ accountNumber: acct, currentBill: amt, rateType: use });
   }
 
@@ -1009,6 +1019,35 @@ function loadCollectorBills(collectorName, unit) {
     const currentBill = parseFloat(bill.currentBill || 0).toFixed(2);
     const balance = parseFloat(bill.balance || 0).toFixed(2);
 
+    // FIX 4 — Track submitted bills check
+    var submittedBills = JSON.parse(sessionStorage.getItem('submittedBills') || '{}');
+    var record = submittedBills[bill.accountNumber];
+
+    var customBorder = '';
+    var statusBadgeStyle = 'display:none;';
+    var statusBadgeHtml = '✅ Submitted';
+    var formStyle = 'display:block;';
+    var noteHtml = '';
+
+    if (record) {
+      if (record.delivered === 'yes') {
+        customBorder = 'border: 2px solid #22c55e;';
+        statusBadgeStyle = 'display:block; text-align:center; padding:10px; background:#dcfce7; color:#166534; font-weight:bold; border-radius:8px; margin-bottom:15px;';
+        statusBadgeHtml = '✅ Delivered on ' + record.date;
+        formStyle = 'display:none;';
+        noteHtml = '<div style="text-align:center;color:#15803d;font-weight:600;margin-top:10px;">Bill already delivered and submitted</div>';
+        newBillObj.submitted = true;
+      } else if (record.delivered === 'no') {
+        customBorder = 'border: 2px solid #f97316;';
+        statusBadgeStyle = 'display:block; text-align:center; padding:10px; background:#ffedd5; color:#c2410c; font-weight:bold; border-radius:8px; margin-bottom:15px;';
+        statusBadgeHtml = '❌ Not delivered - tap to update';
+      }
+    }
+
+    if (customBorder) {
+      card.setAttribute('style', customBorder);
+    }
+
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
         <div>
@@ -1023,9 +1062,10 @@ function loadCollectorBills(collectorName, unit) {
         <div style="font-size:14px; color:#ef4444; margin-top:4px; font-weight:600;">Balance: GHS ${balance}</div>
       </div>
       
-      <div id="status-badge-${idx}" style="display:none; text-align:center; padding:10px; background:#dcfce7; color:#166534; font-weight:bold; border-radius:8px; margin-bottom:15px;">✅ Submitted</div>
+      <div id="status-badge-${idx}" style="${statusBadgeStyle}">${statusBadgeHtml}</div>
+      ${noteHtml}
 
-      <div id="form-content-${idx}">
+      <div id="form-content-${idx}" style="${formStyle}">
         <label style="color:var(--navy);">Delivered?</label>
         <div class="delivery-buttons">
           <button type="button" id="btn-yes-${idx}" onclick="setDelivery(${idx}, 'yes')">YES</button>
@@ -1210,8 +1250,8 @@ function loadCollectorBills(collectorName, unit) {
       collector: currentCollector.name,
       collectorUnit: currentCollector.unit,
       collectorPhone: currentCollector.phone || "",
-      date: document.getElementById('date-select').value,
-      dayOfWeek: new Date(document.getElementById('date-select').value).toLocaleDateString('en-US', {weekday:'long'}),
+      date: document.getElementById('dateInput').value,
+      dayOfWeek: new Date(document.getElementById('dateInput').value).toLocaleDateString('en-US', {weekday:'long'}),
       submissionTime: new Date().toISOString(),
       bills: [],
       totalBills: 1,
@@ -1255,10 +1295,50 @@ function loadCollectorBills(collectorName, unit) {
       document.getElementById('loading').style.display = 'none';
       b.submitted = true;
       
+      var dateStr = new Date().toLocaleDateString('en-GB');
+      var submittedBills = JSON.parse(sessionStorage.getItem('submittedBills') || '{}');
+      submittedBills[b.accountNumber] = {
+        delivered: b.delivered,
+        date: dateStr
+      };
+      sessionStorage.setItem('submittedBills', JSON.stringify(submittedBills));
+
+      // Visually update the card immediately based on the new submission
       const card = document.getElementById(`bill-card-${idx}`);
-      card.classList.add('submitted-card');
-      document.getElementById(`form-content-${idx}`).style.display = 'none';
-      document.getElementById(`status-badge-${idx}`).style.display = 'block';
+      const statusBadge = document.getElementById(`status-badge-${idx}`);
+      const formContent = document.getElementById(`form-content-${idx}`);
+
+      if (b.delivered === 'yes') {
+        if (card) card.style.border = '2px solid #22c55e';
+        if (statusBadge) {
+          statusBadge.style.display = 'block';
+          statusBadge.className = '';
+          statusBadge.setAttribute('style', 'display:block; text-align:center; padding:10px; background:#dcfce7; color:#166534; font-weight:bold; border-radius:8px; margin-bottom:15px;');
+          statusBadge.textContent = '✅ Delivered on ' + dateStr;
+        }
+        if (formContent) {
+          formContent.style.display = 'none';
+        }
+        
+        // Add note element below status badge
+        var note = document.createElement('div');
+        note.setAttribute('style', 'text-align:center;color:#15803d;font-weight:600;margin-top:10px;');
+        note.textContent = 'Bill already delivered and submitted';
+        if (statusBadge) {
+          statusBadge.parentNode.insertBefore(note, statusBadge.nextSibling);
+        }
+      } else {
+        if (card) card.style.border = '2px solid #f97316';
+        if (statusBadge) {
+          statusBadge.style.display = 'block';
+          statusBadge.className = '';
+          statusBadge.setAttribute('style', 'display:block; text-align:center; padding:10px; background:#ffedd5; color:#c2410c; font-weight:bold; border-radius:8px; margin-bottom:15px;');
+          statusBadge.textContent = '❌ Not delivered - tap to update';
+        }
+        if (formContent) {
+          formContent.style.display = 'block';
+        }
+      }
       
       submittedCount++;
       var pct = Math.round((submittedCount/totalBills)*100);
@@ -1365,15 +1445,32 @@ function loadCollectorBills(collectorName, unit) {
               }
             }
           } else {
-            // Show orange warning and add full bill card with YES/NO buttons
-            var warningHtml = 
-              '<div style="color:#c2410c;font-weight:700;margin:10px 0;font-size:13px;line-height:1.4;background:#ffedd5;padding:10px;border-radius:8px;border:1px solid #fed7aa;margin-bottom:12px;text-align:left;">' +
-              '⚠ This bill belongs to ' + bill.collector + ' under ' + bill.supervisor + '</div>';
+            // FIX 3 — Search shows READ ONLY bill details
+            var badgeColor = bill.rateType === 'Property Rate' ? '#3b82f6' : '#fcd116';
+            var badgeText = bill.rateType === 'Property Rate' ? '#fff' : '#000';
+            var arrears = parseFloat(bill.arrears || 0).toFixed(2);
             
-            resultDiv.innerHTML = warningHtml;
-            
-            // Render the full bill card inside resultDiv
-            addBillToUI(bill, resultDiv);
+            resultDiv.innerHTML = 
+              '<div style="background:white;border-radius:12px;padding:16px;border:2px solid #f97316;color:#0a1628;text-align:left;box-shadow:0 2px 8px rgba(0,0,0,0.06);">' +
+              '  <div style="color:#c2410c;font-weight:700;font-size:13px;line-height:1.4;background:#ffedd5;padding:10px;border-radius:8px;border:1px solid #fed7aa;margin-bottom:12px;">' +
+              '    ⚠ View only - belongs to ' + bill.collector + ' under supervisor ' + bill.supervisor + '</div>' +
+              '  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">' +
+              '    <div>' +
+              '      <strong style="font-size:18px;">' + bill.accountNumber + '</strong>' +
+              '      <div style="color:#64748b; font-size:14px; margin-top:4px;">' + (bill.ownerName || "No owner name") + '</div>' +
+              '    </div>' +
+              '    <span class="badge" style="background:' + badgeColor + '; color:' + badgeText + '; padding:4px 8px; border-radius:4px; font-weight:bold;">' + bill.rateType + '</span>' +
+              '  </div>' +
+              '  <div style="font-size:13px;margin:4px 0;">Unit: <strong>' + bill.unit + '</strong></div>' +
+              '  <div style="font-size:13px;margin:4px 0;">Collector: <strong>' + bill.collector + '</strong></div>' +
+              '  <div style="font-size:13px;margin:4px 0;">Supervisor: <strong>' + bill.supervisor + '</strong></div>' +
+              '  <div style="margin-top:12px;">' +
+              '    <div style="font-size:13px; color:#64748b;">Current Bill</div>' +
+              '    <div style="font-size:20px; font-weight:bold; color:var(--green); margin:2px 0;">GHS ' + parseFloat(bill.currentBill || 0).toFixed(2) + '</div>' +
+              '    <div style="font-size:13px; color:#ef4444; margin-top:4px; font-weight:600;">Arrears: GHS ' + arrears + '</div>' +
+              '    <div style="font-size:13px; color:#ef4444; margin-top:4px; font-weight:600;">Balance: GHS ' + parseFloat(bill.balance || 0).toFixed(2) + '</div>' +
+              '  </div>' +
+              '</div>';
           }
         }
       } else {
@@ -1402,6 +1499,24 @@ function loadCollectorBills(collectorName, unit) {
     }
     initLanding();
   }
+
+  // FIX 1 — Keep Apps Script warm to prevent cold start failures
+  function keepWarm() {
+    var cbName = 'warm_' + Date.now();
+    window[cbName] = function() {
+      delete window[cbName];
+    };
+    var script = document.createElement('script');
+    script.src = SCRIPT_URL + 
+      '?action=ping&callback=' + cbName;
+    script.onerror = function() {
+      delete window[cbName];
+    };
+    document.head.appendChild(script);
+  }
+
+  keepWarm();
+  setInterval(keepWarm, 4 * 60 * 1000);
 
   window.onload = checkSessionOnLoad;
 </script>
