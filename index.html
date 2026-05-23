@@ -575,7 +575,10 @@
       card.onclick = () => selectSupervisor(name);
       list.appendChild(card);
     }
-    document.getElementById('date-select').valueAsDate = new Date();
+    var dateInput = document.getElementById('dateInput');
+    if (dateInput) {
+      dateInput.valueAsDate = new Date();
+    }
   }
 
   function showScreen(screenId) {
