@@ -724,201 +724,86 @@
   }
 
 // ========================================
-// RELIABLE JSONP HELPER
+// RELIABLE JSONP HELPER WITH FIXED GLOBAL CALLBACKS
 // ========================================
-function jsonpRequest(url, callback, retryCount) {
-  retryCount = retryCount || 0;
-  var cbName = 'cb_' + Date.now() + 
-    '_' + Math.floor(Math.random() * 999999);
-  var done = false;
+var _billsCallback = null;
+var _searchCallback = null;
 
-  window[cbName] = function(data) {
-    if (done) return;
-    done = true;
-    if (window[cbName]) delete window[cbName];
-    callback(null, data);
-  };
-
-  setTimeout(function() {
-    if (!done) {
-      done = true;
-      if (window[cbName]) delete window[cbName];
-      if (retryCount < 2) {
-        setTimeout(function() {
-          jsonpRequest(url, callback, retryCount + 1);
-        }, 500);
-      } else {
-        callback(new Error('Timeout'), null);
-      }
-    }
-  }, 8000);
-
-  var script = document.createElement('script');
-  script.src = url + '&callback=' + cbName;
-  script.onerror = function() {
-    if (!done) {
-      done = true;
-      if (window[cbName]) delete window[cbName];
-      if (retryCount < 2) {
-        setTimeout(function() {
-          jsonpRequest(url, callback, retryCount + 1);
-        }, 500);
-      } else {
-        callback(new Error('Failed'), null);
-      }
-    }
-  };
-  document.head.appendChild(script);
-}
-
-// ========================================
-// LOAD COLLECTOR BILLS
-// ========================================
 function loadCollectorBills(collectorName, unit) {
   var state = window.state;
   var loadingEl = document.getElementById('billsLoading');
   var container = document.getElementById('bills-container');
   
-  if (loadingEl && document.getElementById('screen-step2').classList.contains('active')) {
-    loadingEl.style.display = 'block';
-  }
+  if (loadingEl) loadingEl.style.display = 'block';
   if (container) container.innerHTML = '';
   state.bills = [];
 
-  // Prefetch state updates
-  window.state.loadingCollectorName = collectorName;
-  window.state.loadingCollectorUnit = unit;
-  window.state.loadedCollectorName = null;
-  window.state.loadedCollectorUnit = null;
-
   var cacheKey = 'bills_' + collectorName + '_' + unit;
   var cached = sessionStorage.getItem(cacheKey);
-  
   if (cached) {
     try {
       var cachedBills = JSON.parse(cached);
       if (cachedBills && cachedBills.length > 0) {
         state.bills = cachedBills;
-        
-        window.state.loadedCollectorName = collectorName;
-        window.state.loadedCollectorUnit = unit;
-        window.state.loadingCollectorName = null;
-        window.state.loadingCollectorUnit = null;
-
-        totalBills = 160;
-        submittedCount = 0;
-        
-        var progressEl = document.getElementById('billProgress');
-        var progressBar = document.getElementById('progressBar');
-        var progressText = document.getElementById('progressText');
-        
-        if (progressEl) progressEl.style.display = 'block';
-        if (progressText) {
-          progressText.textContent = submittedCount + ' of ' + totalBills + ' bills submitted';
-        }
-        if (progressBar) {
-          progressBar.style.width = '0%';
-        }
-
         if (loadingEl) loadingEl.style.display = 'none';
-        
-        if (document.getElementById('screen-step2').classList.contains('active')) {
-          renderBillCards();
-        }
-
-        // Call prefetch callback
-        if (window.state.onBillsLoaded) {
-          window.state.onBillsLoaded();
-          window.state.onBillsLoaded = null;
-        }
+        renderBillCards();
         return;
       }
     } catch(e) {}
   }
 
-  var url = SCRIPT_URL + 
-    '?action=getBills' +
-    '&collector=' + encodeURIComponent(collectorName) +
-    '&unit=' + encodeURIComponent(unit);
-
-  jsonpRequest(url, function(err, data) {
+  window.onBillsLoaded = function(data) {
+    window.onBillsLoaded = null;
     if (loadingEl) loadingEl.style.display = 'none';
-    
-    if (err) {
-      console.error('Bills load error:', err);
-      window.state.loadingCollectorName = null;
-      window.state.loadingCollectorUnit = null;
-
-      if (container && document.getElementById('screen-step2').classList.contains('active')) {
+    var bills = (data && data.bills) ? data.bills : [];
+    if (bills.length > 0) {
+      sessionStorage.setItem(cacheKey, 
+        JSON.stringify(bills));
+      state.bills = bills;
+      renderBillCards();
+    } else {
+      if (container) {
         container.innerHTML = 
-          '<div style="text-align:center;' +
-          'padding:40px;color:#ef4444;">' +
-          '<div style="font-size:32px">❌</div>' +
-          '<p>Could not load bills.</p>' +
-          '<p style="font-size:12px">' + 
-          err.message + '</p>' +
+          '<div style="text-align:center;padding:40px;">' +
+          '<p>No bills found.</p>' +
           '<button onclick="loadCollectorBills(\'' +
           collectorName + '\',' + unit + ')" ' +
-          'style="margin-top:12px;padding:10px 20px;' +
-          'background:#006B3F;color:white;border:none;' +
-          'border-radius:8px;cursor:pointer;' +
-          'font-weight:700;">🔄 Retry</button>' +
-          '</div>';
-      }
-      return;
-    }
-    
-    var bills = (data && data.bills) ? data.bills : [];
-    
-    if (bills.length > 0) {
-      sessionStorage.setItem(cacheKey, JSON.stringify(bills));
-      state.bills = bills;
-      
-      window.state.loadedCollectorName = collectorName;
-      window.state.loadedCollectorUnit = unit;
-      window.state.loadingCollectorName = null;
-      window.state.loadingCollectorUnit = null;
-
-      totalBills = 160;
-      submittedCount = 0;
-      
-      var progressEl = document.getElementById('billProgress');
-      var progressBar = document.getElementById('progressBar');
-      var progressText = document.getElementById('progressText');
-      
-      if (progressEl) progressEl.style.display = 'block';
-      if (progressText) {
-        progressText.textContent = submittedCount + ' of ' + totalBills + ' bills submitted';
-      }
-      if (progressBar) {
-        progressBar.style.width = '0%';
-      }
-
-      if (document.getElementById('screen-step2').classList.contains('active')) {
-        renderBillCards();
-      }
-    } else {
-      window.state.loadedCollectorName = collectorName;
-      window.state.loadedCollectorUnit = unit;
-      window.state.loadingCollectorName = null;
-      window.state.loadingCollectorUnit = null;
-
-      if (container && document.getElementById('screen-step2').classList.contains('active')) {
-        container.innerHTML = 
-          '<div style="text-align:center;' +
-          'padding:40px;color:#64748b;">' +
-          '<div style="font-size:32px">📋</div>' +
-          '<p>No bills found for this collector.</p>' +
-          '</div>';
+          'style="padding:10px 20px;background:#006B3F;' +
+          'color:white;border:none;border-radius:8px;' +
+          'cursor:pointer;margin-top:10px;">🔄 Retry' +
+          '</button></div>';
       }
     }
+  };
 
-    // Call prefetch callback
-    if (window.state.onBillsLoaded) {
-      window.state.onBillsLoaded();
-      window.state.onBillsLoaded = null;
+  var old = document.getElementById('billsScript');
+  if (old) old.parentNode.removeChild(old);
+  
+  var script = document.createElement('script');
+  script.id = 'billsScript';
+  script.src = SCRIPT_URL +
+    '?action=getBills' +
+    '&collector=' + encodeURIComponent(collectorName) +
+    '&unit=' + encodeURIComponent(unit) +
+    '&callback=onBillsLoaded';
+  
+  script.onerror = function() {
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (container) {
+      container.innerHTML = 
+        '<div style="text-align:center;padding:40px;' +
+        'color:#ef4444;">' +
+        '<p>Failed to load bills.</p>' +
+        '<button onclick="loadCollectorBills(\'' +
+        collectorName + '\',' + unit + ')" ' +
+        'style="padding:10px 20px;background:#006B3F;' +
+        'color:white;border:none;border-radius:8px;' +
+        'cursor:pointer;margin-top:10px;">🔄 Retry' +
+        '</button></div>';
     }
-  });
+  };
+  
+  document.head.appendChild(script);
 }
 
   function renderBillCards() {
@@ -1367,13 +1252,10 @@ function loadCollectorBills(collectorName, unit) {
   }
 
   function searchBillByAccount() {
+    var state = window.state;
     var input = document.getElementById('billSearchInput');
     var resultDiv = document.getElementById('billSearchResult');
-    
-    if (!input) return;
-    var accountNumber = input.value.trim();
-    
-    console.log('Searching for:', accountNumber);
+    var accountNumber = input ? input.value.trim() : '';
     
     if (!accountNumber) {
       alert('Please enter an account number');
@@ -1381,107 +1263,113 @@ function loadCollectorBills(collectorName, unit) {
     }
     
     if (resultDiv) {
-      resultDiv.style.display = 'block';
       resultDiv.innerHTML = 
-        '<div style="text-align:center;padding:20px;color:#0a1628;">' +
-        '⏳ Searching all bills...</div>';
+        '<div style="text-align:center;padding:16px;">' +
+        '⏳ Searching...</div>';
     }
 
-    var url = SCRIPT_URL +
-      '?action=getBills' +
-      '&account=' + encodeURIComponent(accountNumber);
-
-    jsonpRequest(url, function(err, data) {
-      if (err) {
-        if (resultDiv) {
-          resultDiv.innerHTML = 
-            '<div style="text-align:center;' +
-            'padding:20px;color:#ef4444;">' +
-            '❌ Search failed. Check connection.</div>';
-        }
-        return;
-      }
-      
-      console.log('Search result:', data);
+    window.onSearchDone = function(data) {
+      window.onSearchDone = null;
       var bills = (data && data.bills) ? data.bills : [];
       
       if (bills.length > 0) {
         var bill = bills[0];
+        var isCurrentCollector = 
+          bill.collector === state.collector;
+        
+        var bannerHtml = isCurrentCollector ?
+          '<div style="background:#dcfce7;color:#15803d;' +
+          'padding:8px 12px;border-radius:8px;' +
+          'margin-bottom:10px;font-weight:700;">' +
+          '✅ This bill is in your current list</div>' :
+          '<div style="background:#ffedd5;color:#c2410c;' +
+          'padding:8px 12px;border-radius:8px;' +
+          'margin-bottom:10px;font-weight:700;">' +
+          '⚠ View only - belongs to ' + bill.collector +
+          ' under ' + bill.supervisor + '</div>';
+        
         if (resultDiv) {
-          resultDiv.innerHTML = '';
-          
-          var isCurrentCollector = bill.collector && currentCollector && 
-            (bill.collector.toLowerCase().trim() === currentCollector.name.toLowerCase().trim());
-          
-          if (isCurrentCollector) {
-            // Show result info card + green message
-            resultDiv.innerHTML = 
-              '<div style="background:white;border-radius:12px;padding:16px;border:2px solid #006B3F;color:#0a1628;text-align:left;">' +
-              '<div style="font-weight:700;font-size:16px;">' + bill.accountNumber + '</div>' +
-              '<div style="color:#64748b;font-size:13px;margin:4px 0;">' + (bill.ownerName || "No owner name") + '</div>' +
-              '<div style="font-size:13px;margin:4px 0;">Collector: <strong>' + bill.collector + '</strong></div>' +
-              '<div style="font-size:13px;margin:4px 0;">Supervisor: <strong>' + bill.supervisor + '</strong></div>' +
-              '<div style="font-size:13px;margin:4px 0;">Current Bill: <strong>GHS ' + parseFloat(bill.currentBill || 0).toFixed(2) + '</strong></div>' +
-              '<div style="font-size:13px;margin:4px 0;">Balance: <strong>GHS ' + parseFloat(bill.balance || 0).toFixed(2) + '</strong></div>' +
-              '<div style="color:#166534;font-weight:700;margin-top:12px;font-size:13px;background:#dcfce7;padding:10px;border-radius:8px;border:1px solid #bbf7d0;">' +
-              '✅ This bill is in your current list</div>' +
-              '</div>';
-            
-            // Scroll to the bill card in the list
-            var foundIdx = formBills.findIndex(function(b) { 
-              return b.accountNumber === bill.accountNumber; 
-            });
-            if (foundIdx !== -1) {
-              var cardEl = document.getElementById('bill-card-' + foundIdx);
-              if (cardEl) {
-                cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                cardEl.style.transition = 'all 0.5s ease';
-                cardEl.style.boxShadow = '0 0 15px #006B3F';
-                cardEl.style.border = '2px solid #006B3F';
-                setTimeout(function() {
-                  cardEl.style.boxShadow = '';
-                  cardEl.style.border = '';
-                }, 3000);
-              }
+          resultDiv.innerHTML = bannerHtml +
+            '<div style="background:white;border-radius:12px;' +
+            'padding:16px;border:2px solid #e2e8f0;text-align:left;">' +
+            '<div style="font-weight:700;font-size:15px;' +
+            'color:#0a1628;">' + bill.accountNumber + '</div>' +
+            '<div style="color:#64748b;font-size:13px;' +
+            'margin:4px 0;">' + 
+            (bill.ownerName || "No owner name") + '</div>' +
+            '<div style="margin-top:8px;font-size:13px;">' +
+            'Rate Type: <strong>' + bill.rateType + 
+            '</strong></div>' +
+            '<div style="font-size:13px;">Current Bill: ' +
+            '<strong>GHS ' + 
+            parseFloat(bill.currentBill).toFixed(2) + 
+            '</strong></div>' +
+            '<div style="font-size:13px;">Balance: ' +
+            '<strong>GHS ' + 
+            parseFloat(bill.balance).toFixed(2) + 
+            '</strong></div>' +
+            '<div style="font-size:13px;">Arrears: ' +
+            '<strong>GHS ' + 
+            parseFloat(bill.arrears).toFixed(2) + 
+            '</strong></div>' +
+            '<div style="font-size:13px;">Unit: ' +
+            '<strong>' + bill.unit + '</strong></div>' +
+            '<div style="font-size:13px;">Collector: ' +
+            '<strong>' + bill.collector + '</strong></div>' +
+            '<div style="font-size:13px;">Supervisor: ' +
+            '<strong>' + bill.supervisor + '</strong></div>' +
+            '</div>';
+        }
+
+        if (isCurrentCollector) {
+          // Scroll to the bill card in the list
+          var foundIdx = formBills.findIndex(function(b) { 
+            return b.accountNumber === bill.accountNumber; 
+          });
+          if (foundIdx !== -1) {
+            var cardEl = document.getElementById('bill-card-' + foundIdx);
+            if (cardEl) {
+              cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              cardEl.style.transition = 'all 0.5s ease';
+              cardEl.style.boxShadow = '0 0 15px #006B3F';
+              cardEl.style.border = '2px solid #006B3F';
+              setTimeout(function() {
+                cardEl.style.boxShadow = '';
+                cardEl.style.border = '';
+              }, 3000);
             }
-          } else {
-            // FIX 3 — Search shows READ ONLY bill details
-            var badgeColor = bill.rateType === 'Property Rate' ? '#3b82f6' : '#fcd116';
-            var badgeText = bill.rateType === 'Property Rate' ? '#fff' : '#000';
-            var arrears = parseFloat(bill.arrears || 0).toFixed(2);
-            
-            resultDiv.innerHTML = 
-              '<div style="background:white;border-radius:12px;padding:16px;border:2px solid #f97316;color:#0a1628;text-align:left;box-shadow:0 2px 8px rgba(0,0,0,0.06);">' +
-              '  <div style="color:#c2410c;font-weight:700;font-size:13px;line-height:1.4;background:#ffedd5;padding:10px;border-radius:8px;border:1px solid #fed7aa;margin-bottom:12px;">' +
-              '    ⚠ View only - belongs to ' + bill.collector + ' under supervisor ' + bill.supervisor + '</div>' +
-              '  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">' +
-              '    <div>' +
-              '      <strong style="font-size:18px;">' + bill.accountNumber + '</strong>' +
-              '      <div style="color:#64748b; font-size:14px; margin-top:4px;">' + (bill.ownerName || "No owner name") + '</div>' +
-              '    </div>' +
-              '    <span class="badge" style="background:' + badgeColor + '; color:' + badgeText + '; padding:4px 8px; border-radius:4px; font-weight:bold;">' + bill.rateType + '</span>' +
-              '  </div>' +
-              '  <div style="font-size:13px;margin:4px 0;">Unit: <strong>' + bill.unit + '</strong></div>' +
-              '  <div style="font-size:13px;margin:4px 0;">Collector: <strong>' + bill.collector + '</strong></div>' +
-              '  <div style="font-size:13px;margin:4px 0;">Supervisor: <strong>' + bill.supervisor + '</strong></div>' +
-              '  <div style="margin-top:12px;">' +
-              '    <div style="font-size:13px; color:#64748b;">Current Bill</div>' +
-              '    <div style="font-size:20px; font-weight:bold; color:var(--green); margin:2px 0;">GHS ' + parseFloat(bill.currentBill || 0).toFixed(2) + '</div>' +
-              '    <div style="font-size:13px; color:#ef4444; margin-top:4px; font-weight:600;">Arrears: GHS ' + arrears + '</div>' +
-              '    <div style="font-size:13px; color:#ef4444; margin-top:4px; font-weight:600;">Balance: GHS ' + parseFloat(bill.balance || 0).toFixed(2) + '</div>' +
-              '  </div>' +
-              '</div>';
           }
         }
       } else {
         if (resultDiv) {
           resultDiv.innerHTML = 
-            '<div style="text-align:center;' +
-            'padding:20px;color:#ef4444;">' +
-            '❌ Bill not found. Check account number.</div>';
+            '<div style="color:#ef4444;padding:12px;' +
+            'text-align:center;">❌ Bill not found. ' +
+            'Check account number and try again.</div>';
         }
       }
-    });
+    };
+
+    var old = document.getElementById('searchScript');
+    if (old) old.parentNode.removeChild(old);
+    
+    var script = document.createElement('script');
+    script.id = 'searchScript';
+    script.src = SCRIPT_URL +
+      '?action=getBills' +
+      '&account=' + encodeURIComponent(accountNumber) +
+      '&callback=onSearchDone';
+    
+    script.onerror = function() {
+      if (resultDiv) {
+        resultDiv.innerHTML = 
+          '<div style="color:#ef4444;padding:12px;' +
+          'text-align:center;">❌ Search failed. ' +
+          'Check connection.</div>';
+      }
+    };
+    
+    document.head.appendChild(script);
   }
 
   function checkSessionOnLoad() {
@@ -1500,18 +1388,17 @@ function loadCollectorBills(collectorName, unit) {
     initLanding();
   }
 
-  // FIX 1 — Keep Apps Script warm to prevent cold start failures
   function keepWarm() {
-    var cbName = 'warm_' + Date.now();
-    window[cbName] = function() {
-      delete window[cbName];
+    window.onWarmDone = function() {
+      window.onWarmDone = null;
     };
+    var old = document.getElementById('warmScript');
+    if (old) old.parentNode.removeChild(old);
     var script = document.createElement('script');
+    script.id = 'warmScript';
     script.src = SCRIPT_URL + 
-      '?action=ping&callback=' + cbName;
-    script.onerror = function() {
-      delete window[cbName];
-    };
+      '?action=ping&callback=onWarmDone';
+    script.onerror = function() {};
     document.head.appendChild(script);
   }
 
