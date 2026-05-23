@@ -541,6 +541,15 @@
             "Statistical cross-tabs: Delivered vs Rate Type, Supervisor, Day and Payment Mode."
           </div>
         </div>
+
+        <div style="display: flex; flex-direction: column;">
+          <button class="export-btn" onclick="exportLevel4CrossTabPDF()">
+            <span>⬇ Cross Tabulation Report PDF</span>
+          </button>
+          <div style="font-size: 12px; color: #94a3b8; margin-top: 4px; font-style: italic; line-height: 1.4;">
+            "Ready-to-publish research report featuring statistical tables and visualization charts."
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1760,6 +1769,81 @@
       headStyles: { fillColor: [0, 107, 63] }
     });
     
+    // Page 2: Analytical Visualizations Addendum
+    try {
+      doc.addPage();
+      
+      // Page Header
+      doc.setFillColor(10, 22, 40); // Navy
+      doc.rect(0, 0, 220, 30, 'F');
+      
+      doc.setTextColor(252, 209, 22); // Gold
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("PropCollect Ghana", 14, 12);
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("ADDENDUM: STATISTICAL VISUALIZATIONS & CHARTS", 14, 20);
+
+      // Get active canvases and extract base64 images
+      var supRateCanvas = document.getElementById('chart-sup-rate');
+      var trendCanvas = document.getElementById('chart-trend');
+      var modesCanvas = document.getElementById('chart-modes');
+      var typesCanvas = document.getElementById('chart-types');
+
+      var currentY = 42;
+
+      if (supRateCanvas) {
+        try {
+          var imgData = supRateCanvas.toDataURL('image/png');
+          doc.setTextColor(10, 22, 40);
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "bold");
+          doc.text("Chart A: Delivery Rate by Supervisor (%)", 14, currentY);
+          doc.addImage(imgData, 'PNG', 14, currentY + 4, 85, 48);
+        } catch (e) {}
+      }
+
+      if (trendCanvas) {
+        try {
+          var imgData = trendCanvas.toDataURL('image/png');
+          doc.setTextColor(10, 22, 40);
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "bold");
+          doc.text("Chart B: Daily Collection Trend (GHS)", 110, currentY);
+          doc.addImage(imgData, 'PNG', 110, currentY + 4, 85, 48);
+        } catch (e) {}
+      }
+
+      currentY += 66;
+
+      if (modesCanvas) {
+        try {
+          var imgData = modesCanvas.toDataURL('image/png');
+          doc.setTextColor(10, 22, 40);
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "bold");
+          doc.text("Chart C: Payment Modes Breakdown", 14, currentY);
+          doc.addImage(imgData, 'PNG', 14, currentY + 4, 85, 48);
+        } catch (e) {}
+      }
+
+      if (typesCanvas) {
+        try {
+          var imgData = typesCanvas.toDataURL('image/png');
+          doc.setTextColor(10, 22, 40);
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "bold");
+          doc.text("Chart D: Property Use Types Breakdown", 110, currentY);
+          doc.addImage(imgData, 'PNG', 110, currentY + 4, 85, 48);
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.error("Error adding visual charts to PDF", err);
+    }
+    
     doc.save("PropCollect_Executive_Summary.pdf");
   }
 
@@ -1997,6 +2081,162 @@
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(t4), "Payment Mode vs Rate Type");
     
     XLSX.writeFile(wb, "research_cross_tabulations.xlsx");
+  }
+
+  // Button 11: Cross Tabulation PDF Report with Graphs
+  function exportLevel4CrossTabPDF() {
+    var doc = new window.jspdf.jsPDF();
+    
+    // Header
+    doc.setFillColor(10, 22, 40); // Navy
+    doc.rect(0, 0, 220, 35, 'F');
+    
+    doc.setTextColor(252, 209, 22); // Gold
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("PropCollect Ghana", 14, 15);
+    
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.text("LEVEL 4: STATISTICAL CROSS-TABULATION & ASSOCIATION REPORT", 14, 25);
+    
+    var delType = { "yes": { "BOP": 0, "Property Rate": 0 }, "no": { "BOP": 0, "Property Rate": 0 } };
+    var delSup = { "yes": {}, "no": {} };
+    var delDay = { "yes": {}, "no": {} };
+    var payType = { "Cash": { "BOP": 0, "Property Rate": 0 }, "Mobile Money": { "BOP": 0, "Property Rate": 0 }, "Bank Transfer": { "BOP": 0, "Property Rate": 0 }, "Cheque": { "BOP": 0, "Property Rate": 0 } };
+    
+    allLogs.forEach(function(l) {
+      var sup = l.supervisor;
+      var day = l.dayOfWeek || "Unknown";
+      
+      if (l.bills) {
+        l.bills.forEach(function(b) {
+          var rt = b.useType === 'RP' || b.useType === 'Property Rate' ? 'Property Rate' : 'BOP';
+          var del = b.delivered;
+          
+          if (del === 'yes' || del === 'no') {
+            delType[del][rt] += 1;
+            
+            if (!delSup[del][sup]) delSup[del][sup] = 0;
+            delSup[del][sup] += 1;
+            
+            if (!delDay[del][day]) delDay[del][day] = 0;
+            delDay[del][day] += 1;
+            
+            if (del === 'yes' && b.modeOfPayment) {
+              var mop = b.modeOfPayment;
+              if (!payType[mop]) payType[mop] = { "BOP": 0, "Property Rate": 0 };
+              payType[mop][rt] += 1;
+            }
+          }
+        });
+      }
+    });
+    
+    doc.setTextColor(10, 22, 40);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text("Table 1: Delivered Status vs Rate Type (BOP vs Property Rate)", 14, 48);
+    
+    var t1Headers = [["Delivered", "BOP (Business)", "Property Rate (Residential)"]];
+    var t1Rows = [
+      ["Yes (Delivered)", String(delType["yes"]["BOP"]), String(delType["yes"]["Property Rate"])],
+      ["No (Failed)", String(delType["no"]["BOP"]), String(delType["no"]["Property Rate"])]
+    ];
+    
+    doc.autoTable({
+      startY: 52,
+      head: t1Headers,
+      body: t1Rows,
+      theme: 'grid',
+      headStyles: { fillColor: [0, 107, 63] }
+    });
+    
+    doc.setFontSize(13);
+    doc.text("Table 2: Delivered Status vs Supervisor Team Jurisdiction", 14, doc.lastAutoTable.finalY + 12);
+    
+    var t2Headers = [["Supervisor", "Delivered (Yes)", "Failed (No)"]];
+    var sups = ["Afua Tenkorang", "Abevi Felix Vifah", "Linda Arthur"];
+    var t2Rows = sups.map(function(s) {
+      return [
+        s,
+        String(delSup["yes"][s] || 0),
+        String(delSup["no"][s] || 0)
+      ];
+    });
+    
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 16,
+      head: t2Headers,
+      body: t2Rows,
+      theme: 'striped',
+      headStyles: { fillColor: [10, 22, 40] }
+    });
+    
+    // Page 2: Association and Charts Addendum
+    try {
+      doc.addPage();
+      
+      // Page Header
+      doc.setFillColor(10, 22, 40); // Navy
+      doc.rect(0, 0, 220, 30, 'F');
+      
+      doc.setTextColor(252, 209, 22); // Gold
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("PropCollect Ghana", 14, 12);
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("ADDENDUM: STATISTICAL VISUALIZATIONS & CHARTS", 14, 20);
+
+      var modesCanvas = document.getElementById('chart-modes');
+      var typesCanvas = document.getElementById('chart-types');
+      var trendCanvas = document.getElementById('chart-trend');
+
+      var currentY = 42;
+
+      if (modesCanvas) {
+        try {
+          var imgData = modesCanvas.toDataURL('image/png');
+          doc.setTextColor(10, 22, 40);
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "bold");
+          doc.text("Chart A: Payment Modes Breakdown", 14, currentY);
+          doc.addImage(imgData, 'PNG', 14, currentY + 4, 85, 48);
+        } catch (e) {}
+      }
+
+      if (typesCanvas) {
+        try {
+          var imgData = typesCanvas.toDataURL('image/png');
+          doc.setTextColor(10, 22, 40);
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "bold");
+          doc.text("Chart B: Property Use Types Breakdown", 110, currentY);
+          doc.addImage(imgData, 'PNG', 110, currentY + 4, 85, 48);
+        } catch (e) {}
+      }
+
+      currentY += 66;
+
+      if (trendCanvas) {
+        try {
+          var imgData = trendCanvas.toDataURL('image/png');
+          doc.setTextColor(10, 22, 40);
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "bold");
+          doc.text("Chart C: Daily Collection Trend (GHS)", 14, currentY);
+          doc.addImage(imgData, 'PNG', 14, currentY + 4, 180, 52);
+        } catch (e) {}
+      }
+    } catch (err) {
+      console.error("Error adding visual charts to PDF", err);
+    }
+    
+    doc.save("research_cross_tabulations.pdf");
   }
 
   // --- MOCK DATA GENERATOR (For demo) ---
