@@ -410,6 +410,28 @@
         <h3>Use Types Breakdown</h3>
         <div class="chart-container"><canvas id="chart-types"></canvas></div>
       </div>
+
+      <!-- ARM Performance Charts -->
+      <div style="background:white;border-radius:16px;padding:24px;box-shadow:0 1px 8px rgba(0,0,0,.06);margin-bottom:24px;grid-column:1/-1;">
+        <h3 style="margin-bottom:16px;font-size:15px;color:#0a1628;">
+          📊 ARM Group Daily Performance
+        </h3>
+        <canvas id="chartArmDelivery" style="max-height:300px;"></canvas>
+      </div>
+
+      <div style="background:white;border-radius:16px;padding:24px;box-shadow:0 1px 8px rgba(0,0,0,.06);margin-bottom:24px;grid-column:1/-1;">
+        <h3 style="margin-bottom:16px;font-size:15px;color:#0a1628;">
+          💰 ARM Group Amount Collected by Day
+        </h3>
+        <canvas id="chartArmAmount" style="max-height:300px;"></canvas>
+      </div>
+
+      <div style="background:white;border-radius:16px;padding:24px;box-shadow:0 1px 8px rgba(0,0,0,.06);margin-bottom:24px;grid-column:1/-1;">
+        <h3 style="margin-bottom:16px;font-size:15px;color:#0a1628;">
+          📈 ARM Daily Progress Trend
+        </h3>
+        <canvas id="chartArmTrend" style="max-height:300px;"></canvas>
+      </div>
     </div>
   </div>
 
@@ -1428,6 +1450,71 @@
     renderBillsTable();
   }
 
+  function getArmDailyStats() {
+    var arms = ['TG1', 'TG2', 'CG'];
+    var result = {};
+    
+    arms.forEach(function(arm) {
+      result[arm] = {};
+      
+      // Get all collectors for this arm from supervisorData
+      var armCollectors = [];
+      Object.values(supervisorData).forEach(function(sup) {
+        sup.collectors.forEach(function(c) {
+          // Get arm from ALL_BILLS
+          if (window.ALL_BILLS) {
+            var bill = window.ALL_BILLS.find(function(b) {
+              return b.collector === c.name;
+            });
+            if (bill && bill.arm === arm) {
+              armCollectors.push(c.name);
+            }
+          }
+        });
+      });
+      
+      // For each collector get their relative day stats
+      var dayStats = {
+        day1: {delivered:0, failed:0, amount:0},
+        day2: {delivered:0, failed:0, amount:0},
+        day3: {delivered:0, failed:0, amount:0},
+        day4: {delivered:0, failed:0, amount:0}
+      };
+      
+      armCollectors.forEach(function(collName) {
+        var logs = allLogs.filter(function(l) {
+          return l.collector === collName;
+        });
+        
+        // Get unique dates sorted = relative days
+        var dates = [...new Set(logs.map(function(l) { 
+          return l.date ? new Date(l.date).toDateString() : ''; 
+        }))].filter(Boolean).sort(function(a,b) {
+          return new Date(a) - new Date(b);
+        });
+        
+        dates.forEach(function(date, idx) {
+          var dayKey = 'day' + (idx + 1);
+          if (!dayStats[dayKey]) return;
+          
+          var dayLogs = logs.filter(function(l) {
+            return l.date && new Date(l.date).toDateString() === date;
+          });
+          
+          dayLogs.forEach(function(l) {
+            dayStats[dayKey].delivered += (l.totalDelivered || 0);
+            dayStats[dayKey].failed += (l.totalFailed || 0);
+            dayStats[dayKey].amount += parseFloat(l.totalAmountCollected || 0);
+          });
+        });
+      });
+      
+      result[arm] = dayStats;
+    });
+    
+    return result;
+  }
+
   // --- ANALYTICS CHARTS ---
   function renderCharts() {
     if (!window.Chart) return;
@@ -1522,6 +1609,157 @@
           data: Object.values(types),
           backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#14b8a6']
         }]
+      }
+    });
+
+    // 5. ARM Daily Performance Charts
+    var armStats = getArmDailyStats();
+    var days = ['Day 1','Day 2','Day 3','Day 4'];
+    var armColors = {
+      TG1: '#006B3F',
+      TG2: '#FCD116', 
+      CG: '#0a1628'
+    };
+
+    // Chart: ARM Delivery Rate by Day
+    var armDeliveryData = {
+      labels: days,
+      datasets: ['TG1','TG2','CG'].map(function(arm) {
+        return {
+          label: arm,
+          data: ['day1','day2','day3','day4'].map(function(d) {
+            var s = armStats[arm][d];
+            var total = s.delivered + s.failed;
+            return total > 0 ? Math.round(s.delivered/total*100) : 0;
+          }),
+          backgroundColor: armColors[arm],
+          borderRadius: 6
+        };
+      })
+    };
+
+    if (charts.armDelivery)
+      charts.armDelivery.destroy();
+    var ctxAD = document.getElementById('chartArmDelivery').getContext('2d');
+    charts.armDelivery = new Chart(ctxAD, {
+      type: 'bar',
+      data: armDeliveryData,
+      options: {
+        responsive: true,
+        animation: {
+          duration: 1000,
+          easing: 'easeInOutQuart'
+        },
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            backgroundColor: '#0a1628',
+            callbacks: {
+              label: function(ctx) {
+                return ctx.dataset.label + ': ' + ctx.raw + '%';
+              }
+            }
+          }
+        },
+        scales: {
+          y: { 
+            min: 0, max: 100,
+            ticks: {
+              callback: function(v) { return v + '%'; }
+            }
+          }
+        }
+      }
+    });
+
+    // Chart: ARM Amount by Day
+    var armAmountData = {
+      labels: days,
+      datasets: ['TG1','TG2','CG'].map(function(arm) {
+        return {
+          label: arm,
+          data: ['day1','day2','day3','day4'].map(function(d) {
+            return armStats[arm][d].amount;
+          }),
+          backgroundColor: armColors[arm],
+          borderRadius: 6
+        };
+      })
+    };
+
+    if (charts.armAmount)
+      charts.armAmount.destroy();
+    var ctxAA = document.getElementById('chartArmAmount').getContext('2d');
+    charts.armAmount = new Chart(ctxAA, {
+      type: 'bar',
+      data: armAmountData,
+      options: {
+        responsive: true,
+        animation: {
+          duration: 1000,
+          easing: 'easeInOutQuart'
+        },
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            backgroundColor: '#0a1628',
+            callbacks: {
+              label: function(ctx) {
+                return ctx.dataset.label + ': GHS ' + ctx.raw.toFixed(2);
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Chart: ARM Trend Line
+    var armTrendData = {
+      labels: days,
+      datasets: ['TG1','TG2','CG'].map(function(arm) {
+        return {
+          label: arm,
+          data: ['day1','day2','day3','day4'].map(function(d) {
+            var s = armStats[arm][d];
+            var total = s.delivered + s.failed;
+            return total > 0 ? Math.round(s.delivered/total*100) : 0;
+          }),
+          borderColor: armColors[arm],
+          backgroundColor: armColors[arm] + '20',
+          tension: 0.4,
+          fill: true,
+          pointRadius: 6,
+          pointHoverRadius: 8
+        };
+      })
+    };
+
+    if (charts.armTrend)
+      charts.armTrend.destroy();
+    var ctxAT = document.getElementById('chartArmTrend').getContext('2d');
+    charts.armTrend = new Chart(ctxAT, {
+      type: 'line',
+      data: armTrendData,
+      options: {
+        responsive: true,
+        animation: {
+          duration: 1200,
+          easing: 'easeInOutQuart'
+        },
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            backgroundColor: '#0a1628'
+          }
+        },
+        scales: {
+          y: {
+            min: 0, max: 100,
+            ticks: {
+              callback: function(v) { return v + '%'; }
+            }
+          }
+        }
       }
     });
   }
@@ -1622,6 +1860,58 @@
 
   // Button 3: Collector Summary CSV
   function exportLevel1CollectorCSV() {
+    function formatDisplayDate(dateStr) {
+      if (!dateStr) return '';
+      if (typeof dateStr !== 'string') {
+        try {
+          dateStr = new Date(dateStr).toISOString().split('T')[0];
+        } catch(e) {
+          return '';
+        }
+      }
+      if (dateStr.includes('T')) {
+        dateStr = dateStr.split('T')[0];
+      }
+      var parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return parts[2] + '/' + parts[1] + '/' + parts[0];
+      }
+      return dateStr;
+    }
+
+    function getCollectorDayStats(collName) {
+      var logs = allLogs.filter(function(l) {
+        return l.collector === collName;
+      });
+      
+      var dateMap = {};
+      logs.forEach(function(l) {
+        if (!l.date) return;
+        var d = new Date(l.date).toDateString();
+        if (!dateMap[d]) {
+          dateMap[d] = {
+            date: formatDisplayDate(l.date),
+            delivered: 0,
+            failed: 0,
+            amount: 0
+          };
+        }
+        dateMap[d].delivered += (l.totalDelivered || 0);
+        dateMap[d].failed += (l.totalFailed || 0);
+        dateMap[d].amount += parseFloat(l.totalAmountCollected || 0);
+      });
+      
+      var days = Object.values(dateMap).sort(function(a,b) {
+        var partsA = a.date.split('/');
+        var partsB = b.date.split('/');
+        var dateA = new Date(partsA[2], partsA[1] - 1, partsA[0]);
+        var dateB = new Date(partsB[2], partsB[1] - 1, partsB[0]);
+        return dateA - dateB;
+      });
+      
+      return days;
+    }
+
     var collectors = {};
     for (var supName in supervisorData) {
       supervisorData[supName].collectors.forEach(function(c) {
@@ -1659,24 +1949,62 @@
       c.amount += (l.totalAmountCollected || 0);
     });
     
-    var headers = ["Collector Name", "Supervisor", "Unit", "Total Expected Bills", "Submitted Bills", "Delivered Bills", "Failed Bills", "Collection Rate %", "Total Amount Collected GHS"];
+    var headers = [
+      "Collector", "Supervisor", "ARM", "Unit", "Total Bills", 
+      "Day1 Date", "Day1 Delivered", "Day1 Failed", "Day1 Amount",
+      "Day2 Date", "Day2 Delivered", "Day2 Failed", "Day2 Amount",
+      "Day3 Date", "Day3 Delivered", "Day3 Failed", "Day3 Amount",
+      "Day4 Date", "Day4 Delivered", "Day4 Failed", "Day4 Amount",
+      "Total Delivered", "Total Failed", "Total Amount GHS", "Delivery Rate%"
+    ];
     var csvRows = [headers.join(",")];
     
     for (var name in collectors) {
       var col = collectors[name];
-      var rate = col.submitted > 0 ? ((col.delivered / col.submitted) * 100).toFixed(1) : "0.0";
+      
+      // Get ARM from ALL_BILLS
+      var arm = "N/A";
+      if (window.ALL_BILLS) {
+        var foundBill = window.ALL_BILLS.find(function(b) {
+          return b.collector === col.name;
+        });
+        if (foundBill && foundBill.arm) {
+          arm = foundBill.arm;
+        }
+      }
+      
+      var days = getCollectorDayStats(col.name);
       
       var row = [
         col.name,
         col.supervisor,
+        arm,
         col.unit,
-        col.totalBills,
-        col.submitted,
-        col.delivered,
-        col.failed,
-        rate,
-        col.amount.toFixed(2)
+        col.totalBills
       ];
+      
+      // Days 1 to 4 columns
+      for (var i = 0; i < 4; i++) {
+        if (days[i]) {
+          row.push(days[i].date);
+          row.push(days[i].delivered);
+          row.push(days[i].failed);
+          row.push(days[i].amount.toFixed(2));
+        } else {
+          row.push("");
+          row.push("");
+          row.push("");
+          row.push("");
+        }
+      }
+      
+      row.push(col.delivered);
+      row.push(col.failed);
+      row.push(col.amount.toFixed(2));
+      
+      var rate = col.submitted > 0 ? ((col.delivered / col.submitted) * 100).toFixed(1) : "0.0";
+      row.push(rate + "%");
+      
       var escapedRow = row.map(function(val) {
         var s = String(val).replace(/"/g, '""');
         if (s.indexOf(',') >= 0 || s.indexOf('\n') >= 0 || s.indexOf('"') >= 0) {
