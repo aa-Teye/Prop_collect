@@ -3,6 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
+  <script src="billsData.js"></script>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PropCollect - Ghana Property Rate Management</title>
@@ -1079,151 +1080,31 @@
     var _searchCallback = null;
 
     function loadCollectorBills(collectorName, unit) {
-      var state = window.state;
       var loadingEl = document.getElementById('billsLoading');
       var container = document.getElementById('bills-container');
-      var indicator = document.getElementById('cacheStatusIndicator');
-
-      if (loadingEl) loadingEl.style.display = 'block';
-      if (container) container.innerHTML = '';
-      state.bills = [];
-
-      // FIX 3: Show loading from server indicator
-      if (indicator) {
-        indicator.innerHTML = '⏳ Loading from server...';
-        indicator.style.color = '#64748b';
-        indicator.style.display = 'block';
-      }
-
-      // FIX 1: Aggressive Caching (sessionStorage AND localStorage)
-      var cacheKey = 'bills_' + collectorName + '_' + unit;
-      var cached = sessionStorage.getItem(cacheKey) || localStorage.getItem(cacheKey);
-      if (cached) {
-        try {
-          var cachedBills = JSON.parse(cached);
-          if (cachedBills && cachedBills.length > 0) {
-            state.bills = cachedBills;
-            if (loadingEl) loadingEl.style.display = 'none';
-            
-            // FIX 3: Show cached indicator in green text
-            if (indicator) {
-              indicator.innerHTML = '⚡ Loaded instantly from cache';
-              indicator.style.color = '#15803d';
-              indicator.style.display = 'block';
-            }
-            
-            renderBillCards();
-            return;
-          }
-        } catch (e) { }
-      }
-
-      window.onBillsLoaded = function (data) {
-        window.onBillsLoaded = null;
-        if (loadingEl) loadingEl.style.display = 'none';
-        var bills = (data && data.bills) ? data.bills : [];
-        if (bills.length > 0) {
-          // Store in both cache storage layers
-          sessionStorage.setItem(cacheKey, JSON.stringify(bills));
-          localStorage.setItem(cacheKey, JSON.stringify(bills));
-          
-          state.bills = bills;
-          
-          // Hide cache status indicator on successful fetch
-          if (indicator) {
-            indicator.style.display = 'none';
-          }
-          
-          renderBillCards();
-        } else {
-          if (indicator) indicator.style.display = 'none';
-          if (container) {
-            container.innerHTML =
-              '<div style="text-align:center;padding:40px;">' +
-              '<p>No bills found.</p>' +
-              '<button onclick="loadCollectorBills(\'' +
-              collectorName + '\',' + unit + ')" ' +
-              'style="padding:10px 20px;background:#006B3F;' +
-              'color:white;border:none;border-radius:8px;' +
-              'cursor:pointer;margin-top:10px;">🔄 Retry' +
-              '</button></div>';
-          }
-        }
-      };
-
-      var old = document.getElementById('billsScript');
-      if (old) old.parentNode.removeChild(old);
-
-      var script = document.createElement('script');
-      script.id = 'billsScript';
-      script.src = SCRIPT_URL +
-        '?action=getBills' +
-        '&collector=' + encodeURIComponent(collectorName) +
-        '&unit=' + encodeURIComponent(unit) +
-        '&callback=onBillsLoaded';
-
-      script.onerror = function () {
-        if (loadingEl) loadingEl.style.display = 'none';
-        if (indicator) indicator.style.display = 'none';
+      
+      if (loadingEl) loadingEl.style.display = 'none';
+      
+      if (!window.ALL_BILLS) {
         if (container) {
-          container.innerHTML =
-            '<div style="text-align:center;padding:40px;' +
-            'color:#ef4444;">' +
-            '<p>Failed to load bills.</p>' +
-            '<button onclick="loadCollectorBills(\'' +
-            collectorName + '\',' + unit + ')" ' +
-            'style="padding:10px 20px;background:#006B3F;' +
-            'color:white;border:none;border-radius:8px;' +
-            'cursor:pointer;margin-top:10px;">🔄 Retry' +
-            '</button></div>';
+          container.innerHTML = 
+            '<div style="text-align:center;padding:40px;">' +
+            '<p>Bills data not loaded. Please refresh.</p>' +
+            '</div>';
         }
-      };
-
-      document.head.appendChild(script);
+        return;
+      }
+      
+      var bills = window.ALL_BILLS.filter(function(b) {
+        return b.collector === collectorName;
+      });
+      
+      state.bills = bills;
+      renderBillCards();
     }
 
-    // FIX 2: Preload ALL collectors on supervisor login
     function preloadAllCollectorBills() {
-      var sup = supervisorData[state.supervisor];
-      if (!sup || !sup.collectors) return;
-      
-      var collectors = sup.collectors;
-      var index = 0;
-      
-      function loadNext() {
-        if (index >= collectors.length) return;
-        var c = collectors[index];
-        index++;
-        
-        var cacheKey = 'bills_' + c.name + '_' + c.unit;
-        var cached = localStorage.getItem(cacheKey);
-        if (cached) {
-          loadNext();
-          return;
-        }
-        
-        window['preloadCb_' + c.unit] = function(data) {
-          delete window['preloadCb_' + c.unit];
-          if (data && data.bills && data.bills.length > 0) {
-            localStorage.setItem(cacheKey, JSON.stringify(data.bills));
-          }
-          setTimeout(loadNext, 500);
-        };
-        
-        var script = document.createElement('script');
-        script.src = SCRIPT_URL +
-          '?action=getBills' +
-          '&collector=' + encodeURIComponent(c.name) +
-          '&unit=' + c.unit +
-          '&callback=preloadCb_' + c.unit;
-        script.onerror = function() {
-          delete window['preloadCb_' + c.unit];
-          setTimeout(loadNext, 500);
-        };
-        document.head.appendChild(script);
-      }
-      
-      setTimeout(loadNext, 2000);
+      // Offline mode - all bills already loaded locally
     }
 
     function renderBillCards() {
@@ -1742,122 +1623,100 @@
         return;
       }
 
-      if (resultDiv) {
-        resultDiv.innerHTML =
-          '<div style="text-align:center;padding:16px;">' +
-          '⏳ Searching...</div>';
+      if (!window.ALL_BILLS) {
+        if (resultDiv) {
+          resultDiv.innerHTML = '<p style="color:red">Bills data not loaded. Please refresh.</p>';
+        }
+        return;
       }
 
-      window.onSearchDone = function (data) {
-        window.onSearchDone = null;
-        var bills = (data && data.bills) ? data.bills : [];
+      var found = window.ALL_BILLS.filter(function(b) {
+        return b.accountNumber.toLowerCase().includes(accountNumber.toLowerCase());
+      });
 
-        if (bills.length > 0) {
-          var bill = bills[0];
-          var isCurrentCollector =
-            bill.collector === state.collector;
+      if (found.length > 0) {
+        var bill = found[0];
+        var isCurrentCollector = bill.collector === state.collector;
 
-          var bannerHtml = isCurrentCollector ?
-            '<div style="background:#dcfce7;color:#15803d;' +
-            'padding:8px 12px;border-radius:8px;' +
-            'margin-bottom:10px;font-weight:700;">' +
-            '✅ In current list — Click card below to scroll to it</div>' :
-            '<div style="background:#ffedd5;color:#c2410c;' +
-            'padding:8px 12px;border-radius:8px;' +
-            'margin-bottom:10px;font-weight:700;">' +
-            '💡 Click card below to add to your working list</div>';
+        var bannerHtml = isCurrentCollector ?
+          '<div style="background:#dcfce7;color:#15803d;' +
+          'padding:8px 12px;border-radius:8px;' +
+          'margin-bottom:10px;font-weight:700;">' +
+          '✅ In current list — Click card below to scroll to it</div>' :
+          '<div style="background:#ffedd5;color:#c2410c;' +
+          'padding:8px 12px;border-radius:8px;' +
+          'margin-bottom:10px;font-weight:700;">' +
+          '💡 Click card below to add to your working list</div>';
 
-          if (resultDiv) {
-            resultDiv.innerHTML = '';
+        if (resultDiv) {
+          resultDiv.innerHTML = '';
+          
+          var bannerEl = document.createElement('div');
+          bannerEl.innerHTML = bannerHtml;
+          resultDiv.appendChild(bannerEl);
+          
+          var cardEl = document.createElement('div');
+          cardEl.className = 'search-result-card';
+          cardEl.setAttribute('style', 'cursor:pointer;background:white;border-radius:12px;padding:16px;border:2px solid #006B3F;text-align:left;transition: transform 0.2s, box-shadow 0.2s;');
+          
+          cardEl.onmouseover = function() {
+            this.style.transform = 'scale(1.02)';
+            this.style.boxShadow = '0 4px 12px rgba(0,107,63,0.15)';
+          };
+          cardEl.onmouseout = function() {
+            this.style.transform = 'none';
+            this.style.boxShadow = 'none';
+          };
+          
+          cardEl.onclick = function() {
+            handleSearchClick(bill);
+          };
+          
+          cardEl.innerHTML = 
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+              '<span style="font-weight:700;font-size:16px;color:#0a1628;">' + bill.accountNumber + '</span>' +
+              '<span style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:bold;padding:2px 6px;border-radius:4px;">' + 
+              (isCurrentCollector ? 'Click to Open' : 'Click to Add') + '</span>' +
+            '</div>' +
+            '<div style="color:#64748b;font-size:13px;margin:4px 0;">' + (bill.ownerName || "No owner name") + '</div>' +
+            '<div style="margin-top:8px;font-size:13px;">Rate Type: <strong>' + bill.rateType + '</strong></div>' +
+            '<div style="font-size:13px;">Current Bill: <strong>GHS ' + parseFloat(bill.currentBill || 0).toFixed(2) + '</strong></div>' +
+            '<div style="font-size:13px;">Balance: <strong>GHS ' + parseFloat(bill.balance || 0).toFixed(2) + '</strong></div>' +
+            '<div style="font-size:13px;">Arrears: <strong>GHS ' + parseFloat(bill.arrears || 0).toFixed(2) + '</strong></div>' +
+            '<div style="font-size:13px;">Unit: <strong>' + bill.unit + '</strong></div>' +
+            '<div style="font-size:13px;">Collector: <strong>' + bill.collector + '</strong></div>' +
+            '<div style="font-size:13px;">Supervisor: <strong>' + bill.supervisor + '</strong></div>';
             
-            var bannerEl = document.createElement('div');
-            bannerEl.innerHTML = bannerHtml;
-            resultDiv.appendChild(bannerEl);
-            
-            var cardEl = document.createElement('div');
-            cardEl.className = 'search-result-card';
-            cardEl.setAttribute('style', 'cursor:pointer;background:white;border-radius:12px;padding:16px;border:2px solid #006B3F;text-align:left;transition: transform 0.2s, box-shadow 0.2s;');
-            
-            cardEl.onmouseover = function() {
-              this.style.transform = 'scale(1.02)';
-              this.style.boxShadow = '0 4px 12px rgba(0,107,63,0.15)';
-            };
-            cardEl.onmouseout = function() {
-              this.style.transform = 'none';
-              this.style.boxShadow = 'none';
-            };
-            
-            cardEl.onclick = function() {
-              handleSearchClick(bill);
-            };
-            
-            cardEl.innerHTML = 
-              '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
-                '<span style="font-weight:700;font-size:16px;color:#0a1628;">' + bill.accountNumber + '</span>' +
-                '<span style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:bold;padding:2px 6px;border-radius:4px;">' + 
-                (isCurrentCollector ? 'Click to Open' : 'Click to Add') + '</span>' +
-              '</div>' +
-              '<div style="color:#64748b;font-size:13px;margin:4px 0;">' + (bill.ownerName || "No owner name") + '</div>' +
-              '<div style="margin-top:8px;font-size:13px;">Rate Type: <strong>' + bill.rateType + '</strong></div>' +
-              '<div style="font-size:13px;">Current Bill: <strong>GHS ' + parseFloat(bill.currentBill).toFixed(2) + '</strong></div>' +
-              '<div style="font-size:13px;">Balance: <strong>GHS ' + parseFloat(bill.balance).toFixed(2) + '</strong></div>' +
-              '<div style="font-size:13px;">Arrears: <strong>GHS ' + parseFloat(bill.arrears).toFixed(2) + '</strong></div>' +
-              '<div style="font-size:13px;">Unit: <strong>' + bill.unit + '</strong></div>' +
-              '<div style="font-size:13px;">Collector: <strong>' + bill.collector + '</strong></div>' +
-              '<div style="font-size:13px;">Supervisor: <strong>' + bill.supervisor + '</strong></div>';
-              
-            resultDiv.appendChild(cardEl);
-          }
+          resultDiv.appendChild(cardEl);
+        }
 
-          if (isCurrentCollector) {
-            // Scroll to the bill card in the list
-            var foundIdx = formBills.findIndex(function (b) {
-              return b.accountNumber === bill.accountNumber;
-            });
-            if (foundIdx !== -1) {
-              var cardEl = document.getElementById('bill-card-' + foundIdx);
-              if (cardEl) {
-                cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                cardEl.style.transition = 'all 0.5s ease';
-                cardEl.style.boxShadow = '0 0 35px #FCD116, inset 0 0 20px #FCD116';
-                cardEl.style.border = '5px solid #FCD116';
-                setTimeout(function () {
-                  cardEl.style.boxShadow = '';
-                  cardEl.style.border = '';
-                }, 5000);
-              }
+        if (isCurrentCollector) {
+          // Scroll to the bill card in the list
+          var foundIdx = formBills.findIndex(function (b) {
+            return b.accountNumber === bill.accountNumber;
+          });
+          if (foundIdx !== -1) {
+            var scrollCardEl = document.getElementById('bill-card-' + foundIdx);
+            if (scrollCardEl) {
+              scrollCardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              scrollCardEl.style.transition = 'all 0.5s ease';
+              scrollCardEl.style.boxShadow = '0 0 35px #FCD116, inset 0 0 20px #FCD116';
+              scrollCardEl.style.border = '5px solid #FCD116';
+              setTimeout(function () {
+                scrollCardEl.style.boxShadow = '';
+                scrollCardEl.style.border = '';
+              }, 5000);
             }
           }
-        } else {
-          if (resultDiv) {
-            resultDiv.innerHTML =
-              '<div style="color:#ef4444;padding:12px;' +
-              'text-align:center;">❌ Bill not found. ' +
-              'Check account number and try again.</div>';
-          }
         }
-      };
-
-      var old = document.getElementById('searchScript');
-      if (old) old.parentNode.removeChild(old);
-
-      var script = document.createElement('script');
-      script.id = 'searchScript';
-      script.src = SCRIPT_URL +
-        '?action=getBills' +
-        '&account=' + encodeURIComponent(accountNumber) +
-        '&callback=onSearchDone';
-
-      script.onerror = function () {
+      } else {
         if (resultDiv) {
           resultDiv.innerHTML =
             '<div style="color:#ef4444;padding:12px;' +
-            'text-align:center;">❌ Search failed. ' +
-            'Check connection.</div>';
+            'text-align:center;">❌ Bill not found. ' +
+            'Check account number and try again.</div>';
         }
-      };
-
-      document.head.appendChild(script);
+      }
     }
 
     function checkSessionOnLoad() {
