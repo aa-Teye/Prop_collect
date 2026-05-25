@@ -1758,7 +1758,8 @@
     keepWarm();
     setInterval(keepWarm, 4 * 60 * 1000);
 
-    window.onload = checkSessionOnLoad;
+    // Initialize immediately so supervisors load instantly without waiting for images/resources
+    checkSessionOnLoad();
   </script>
 
 </body>
