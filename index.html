@@ -1679,8 +1679,7 @@
       showScreen('screen-landing');
     }
 
-    function handleSearchClick(billStr) {
-      var bill = JSON.parse(decodeURIComponent(billStr));
+    function handleSearchClick(bill) {
       var accountNumber = bill.accountNumber;
 
       var foundIdx = formBills.findIndex(function (b) {
@@ -1769,45 +1768,45 @@
             '💡 Click card below to add to your working list</div>';
 
           if (resultDiv) {
-            var billJsonStr = encodeURIComponent(JSON.stringify(bill));
-            resultDiv.innerHTML = bannerHtml +
-              '<div onclick="handleSearchClick(\'' + billJsonStr + '\')" ' +
-              'class="search-result-card" ' +
-              'style="cursor:pointer;background:white;border-radius:12px;' +
-              'padding:16px;border:2px solid #006B3F;text-align:left;' +
-              'transition: transform 0.2s, box-shadow 0.2s;" ' +
-              'onmouseover="this.style.transform=\'scale(1.02)\';this.style.boxShadow=\'0 4px 12px rgba(0,107,63,0.15)\'" ' +
-              'onmouseout="this.style.transform=\'none\';this.style.boxShadow=\'none\'">' +
+            resultDiv.innerHTML = '';
+            
+            var bannerEl = document.createElement('div');
+            bannerEl.innerHTML = bannerHtml;
+            resultDiv.appendChild(bannerEl);
+            
+            var cardEl = document.createElement('div');
+            cardEl.className = 'search-result-card';
+            cardEl.setAttribute('style', 'cursor:pointer;background:white;border-radius:12px;padding:16px;border:2px solid #006B3F;text-align:left;transition: transform 0.2s, box-shadow 0.2s;');
+            
+            cardEl.onmouseover = function() {
+              this.style.transform = 'scale(1.02)';
+              this.style.boxShadow = '0 4px 12px rgba(0,107,63,0.15)';
+            };
+            cardEl.onmouseout = function() {
+              this.style.transform = 'none';
+              this.style.boxShadow = 'none';
+            };
+            
+            cardEl.onclick = function() {
+              handleSearchClick(bill);
+            };
+            
+            cardEl.innerHTML = 
               '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
                 '<span style="font-weight:700;font-size:16px;color:#0a1628;">' + bill.accountNumber + '</span>' +
                 '<span style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:bold;padding:2px 6px;border-radius:4px;">' + 
                 (isCurrentCollector ? 'Click to Open' : 'Click to Add') + '</span>' +
               '</div>' +
-              '<div style="color:#64748b;font-size:13px;' +
-              'margin:4px 0;">' +
-              (bill.ownerName || "No owner name") + '</div>' +
-              '<div style="margin-top:8px;font-size:13px;">' +
-              'Rate Type: <strong>' + bill.rateType +
-              '</strong></div>' +
-              '<div style="font-size:13px;">Current Bill: ' +
-              '<strong>GHS ' +
-              parseFloat(bill.currentBill).toFixed(2) +
-              '</strong></div>' +
-              '<div style="font-size:13px;">Balance: ' +
-              '<strong>GHS ' +
-              parseFloat(bill.balance).toFixed(2) +
-              '</strong></div>' +
-              '<div style="font-size:13px;">Arrears: ' +
-              '<strong>GHS ' +
-              parseFloat(bill.arrears).toFixed(2) +
-              '</strong></div>' +
-              '<div style="font-size:13px;">Unit: ' +
-              '<strong>' + bill.unit + '</strong></div>' +
-              '<div style="font-size:13px;">Collector: ' +
-              '<strong>' + bill.collector + '</strong></div>' +
-              '<div style="font-size:13px;">Supervisor: ' +
-              '<strong>' + bill.supervisor + '</strong></div>' +
-              '</div>';
+              '<div style="color:#64748b;font-size:13px;margin:4px 0;">' + (bill.ownerName || "No owner name") + '</div>' +
+              '<div style="margin-top:8px;font-size:13px;">Rate Type: <strong>' + bill.rateType + '</strong></div>' +
+              '<div style="font-size:13px;">Current Bill: <strong>GHS ' + parseFloat(bill.currentBill).toFixed(2) + '</strong></div>' +
+              '<div style="font-size:13px;">Balance: <strong>GHS ' + parseFloat(bill.balance).toFixed(2) + '</strong></div>' +
+              '<div style="font-size:13px;">Arrears: <strong>GHS ' + parseFloat(bill.arrears).toFixed(2) + '</strong></div>' +
+              '<div style="font-size:13px;">Unit: <strong>' + bill.unit + '</strong></div>' +
+              '<div style="font-size:13px;">Collector: <strong>' + bill.collector + '</strong></div>' +
+              '<div style="font-size:13px;">Supervisor: <strong>' + bill.supervisor + '</strong></div>';
+              
+            resultDiv.appendChild(cardEl);
           }
 
           if (isCurrentCollector) {
