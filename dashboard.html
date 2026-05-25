@@ -381,6 +381,13 @@
           <option value="yes">Delivered</option>
           <option value="no">Failed</option>
         </select>
+        <select id="filt-day" onchange="renderBillsTable()">
+          <option value="">All Days</option>
+          <option value="1">Day 1</option>
+          <option value="2">Day 2</option>
+          <option value="3">Day 3</option>
+          <option value="4">Day 4</option>
+        </select>
         <input type="text" id="filt-search" placeholder="Search Acc# or Name..." onkeyup="renderBillsTable()">
         <button class="btn" onclick="clearFilters()">Clear</button>
       </div>
@@ -390,7 +397,7 @@
       <table id="bills-table">
         <thead>
           <tr>
-            <th>Date</th><th>Supervisor</th><th>Collector</th>
+            <th>Date</th><th>Day</th><th>Supervisor</th><th>Collector</th>
             <th>Acc #</th><th>Type</th><th>Bill Amt</th>
             <th>Status</th><th>Ratepayer</th><th>Paid</th>
             <th>Mode</th><th>Reason (If Failed)</th>
@@ -1500,9 +1507,35 @@
     const fSup = document.getElementById('filt-sup').value;
     const fDeliv = document.getElementById('filt-deliv').value;
     const fSearch = document.getElementById('filt-search').value.toLowerCase();
+    const dayFilter = document.getElementById('filt-day').value;
     
+    let filteredLogs = getFilteredLogs();
+    
+    if (dayFilter) {
+      filteredLogs = filteredLogs.filter(function(l) {
+        var collectorLogs = allLogs.filter(function(cl) {
+          return cl.collector === l.collector;
+        });
+        
+        var dates = [...new Set(collectorLogs.map(
+          function(cl) {
+            return cl.date ? 
+              new Date(cl.date).toDateString() : '';
+          }
+        ))].filter(Boolean).sort(function(a,b) {
+          return new Date(a) - new Date(b);
+        });
+        
+        var logDate = l.date ? 
+          new Date(l.date).toDateString() : '';
+        var dayIndex = dates.indexOf(logDate);
+        
+        return dayIndex === parseInt(dayFilter) - 1;
+      });
+    }
+
     let rows = [];
-    getFilteredLogs().forEach(log => {
+    filteredLogs.forEach(log => {
       if (fDate && !isSameDay(log.date, fDate)) return;
       if (fSup && log.supervisor !== fSup) return;
       
@@ -1512,8 +1545,26 @@
           if (fSearch && !b.accountNumber.toLowerCase().includes(fSearch) && 
               !(b.ratepayerName && b.ratepayerName.toLowerCase().includes(fSearch))) return;
           
+          var collectorLogs = allLogs.filter(function(cl) {
+            return cl.collector === log.collector;
+          });
+          
+          var dates = [...new Set(collectorLogs.map(
+            function(cl) {
+              return cl.date ? 
+                new Date(cl.date).toDateString() : '';
+            }
+          ))].filter(Boolean).sort(function(a,b) {
+            return new Date(a) - new Date(b);
+          });
+          
+          var logDate = log.date ? 
+            new Date(log.date).toDateString() : '';
+          var dayIndex = dates.indexOf(logDate);
+          var dayLabel = dayIndex >= 0 ? "Day " + (dayIndex + 1) : "—";
+
           rows.push({
-            date: log.date, sup: log.supervisor, coll: log.collector,
+            date: log.date, sup: log.supervisor, coll: log.collector, dayLabel: dayLabel,
             ...b
           });
         });
@@ -1535,7 +1586,7 @@
       let wBtn = `<a href="${formatWhatsApp(phone)}" target="_blank" style="padding:4px 10px;background:#25D366;color:white;border-radius:4px;text-decoration:none;font-size:12px;">💬 WhatsApp</a>`;
 
       html += `<tr onclick="const n=this.nextElementSibling; n.style.display = n.style.display==='none' ? 'table-row' : 'none';" style="cursor:pointer;" title="Click to view contact options">
-        <td>${r.date}</td><td>${r.sup}</td><td>${r.coll}</td>
+        <td>${r.date}</td><td>${r.dayLabel}</td><td>${r.sup}</td><td>${r.coll}</td>
         <td><strong>${r.accountNumber}</strong></td><td>${r.useType}</td><td>${r.billAmount}</td>
         <td>${stat}</td><td>${r.ratepayerName || '-'}</td>
         <td>${r.amountPaid ? 'GHS '+r.amountPaid : '-'}</td>
@@ -1543,18 +1594,19 @@
         <td>${r.failureReason || r.otherReason || '-'}</td>
       </tr>
       <tr style="background:#f8fafc; display:none;">
-        <td colspan="11" style="padding:10px;">
+        <td colspan="12" style="padding:10px;">
           <strong>Contact ${r.coll}:</strong> ${cBtn} ${wBtn}
         </td>
       </tr>`;
     });
-    document.querySelector('#bills-table tbody').innerHTML = html || '<tr><td colspan="11">No bills found</td></tr>';
+    document.querySelector('#bills-table tbody').innerHTML = html || '<tr><td colspan="12">No bills found</td></tr>';
   }
   
   function clearFilters() {
     document.getElementById('filt-date').value = '';
     document.getElementById('filt-sup').value = '';
     document.getElementById('filt-deliv').value = '';
+    document.getElementById('filt-day').value = '';
     document.getElementById('filt-search').value = '';
     renderBillsTable();
   }
