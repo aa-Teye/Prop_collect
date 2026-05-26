@@ -394,6 +394,19 @@
     </div>
     
     <div class="card" style="overflow-x:auto;">
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <button onclick="exportFilteredBills('excel')"
+          style="padding:10px 20px;background:#006B3F;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">
+          ⬇ Export Filtered Excel
+        </button>
+        <button onclick="exportFilteredBills('pdf')"
+          style="padding:10px 20px;background:#0a1628;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">
+          ⬇ Export Filtered PDF
+        </button>
+        <span style="font-size:12px;color:#94a3b8;align-self:center;">
+          Exports currently filtered data only
+        </span>
+      </div>
       <table id="bills-table">
         <thead>
           <tr>
@@ -2179,10 +2192,20 @@
       var supName = c.supervisor;
       
       var stats = getFullCollectorStats(c.name);
-      var arm = window.ALL_BILLS ? 
-        (window.ALL_BILLS.find(function(b) {
-          return b.collector === c.name;
-        }) || {}).arm || '' : '';
+      var arm = '';
+      if (window.ALL_BILLS) {
+        var billRef = window.ALL_BILLS.find(
+          function(b) {
+            return b.collector === c.name;
+          });
+        arm = billRef ? billRef.arm || '' : '';
+      }
+      if (!arm) {
+        var logRef = allLogs.find(function(l) {
+          return l.collector === c.name;
+        });
+        arm = logRef ? logRef.arm || '' : '';
+      }
 
       var row = [
         c.name,
@@ -2234,6 +2257,180 @@
     var link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.setAttribute("download", "collector_summary_report.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  function getFilteredBillsData() {
+    const fDate = document.getElementById('filt-date').value;
+    const fSup = document.getElementById('filt-sup').value;
+    const fDeliv = document.getElementById('filt-deliv').value;
+    const fSearch = document.getElementById('filt-search').value.toLowerCase();
+    const dayFilter = document.getElementById('filt-day').value;
+    
+    let filteredLogs = getFilteredLogs();
+    
+    if (dayFilter) {
+      filteredLogs = filteredLogs.filter(function(l) {
+        var collectorLogs = allLogs.filter(function(cl) {
+          return cl.collector === l.collector;
+        });
+        
+        var dates = [...new Set(collectorLogs.map(
+          function(cl) {
+            return cl.date ? 
+              new Date(cl.date).toDateString() : '';
+          }
+        ))].filter(Boolean).sort(function(a,b) {
+          return new Date(a) - new Date(b);
+        });
+        
+        var logDate = l.date ? 
+          new Date(l.date).toDateString() : '';
+        var dayIndex = dates.indexOf(logDate);
+        
+        return dayIndex === parseInt(dayFilter) - 1;
+      });
+    }
+
+    let rows = [];
+    filteredLogs.forEach(log => {
+      if (fDate && !isSameDay(log.date, fDate)) return;
+      if (fSup && log.supervisor !== fSup) return;
+      
+      if (log.bills && Array.isArray(log.bills)) {
+        log.bills.forEach(b => {
+          if (fDeliv && b.delivered !== fDeliv) return;
+          if (fSearch && !b.accountNumber.toLowerCase().includes(fSearch) && 
+              !(b.ratepayerName && b.ratepayerName.toLowerCase().includes(fSearch))) return;
+          
+          var collectorLogs = allLogs.filter(function(cl) {
+            return cl.collector === log.collector;
+          });
+          
+          var dates = [...new Set(collectorLogs.map(
+            function(cl) {
+              return cl.date ? 
+                new Date(cl.date).toDateString() : '';
+            }
+          ))].filter(Boolean).sort(function(a,b) {
+            return new Date(a) - new Date(b);
+          });
+          
+          var logDate = log.date ? 
+            new Date(log.date).toDateString() : '';
+          var dayIndex = dates.indexOf(logDate);
+          var dayLabel = dayIndex >= 0 ? "Day " + (dayIndex + 1) : "—";
+
+          rows.push({
+            date: log.date,
+            dayLabel: dayLabel,
+            sup: log.supervisor,
+            coll: log.collector,
+            accountNumber: b.accountNumber,
+            useType: b.useType,
+            billAmount: b.billAmount,
+            delivered: b.delivered === 'yes' ? 'Delivered' : 'Failed',
+            ratepayerName: b.ratepayerName || '-',
+            amountPaid: b.amountPaid ? 'GHS ' + b.amountPaid : '-',
+            modeOfPayment: b.modeOfPayment || '-',
+            failureReason: b.failureReason || b.otherReason || '-'
+          });
+        });
+      }
+    });
+    
+    rows.sort((a,b) => parseLogDate(b.date) - parseLogDate(a.date));
+    return rows;
+  }
+
+  function exportFilteredBills(format) {
+    var data = getFilteredBillsData();
+    if (data.length === 0) {
+      alert("No matching filtered data to export.");
+      return;
+    }
+    
+    if (format === 'excel') {
+      var ws = XLSX.utils.json_to_sheet(data);
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Filtered Bills");
+      XLSX.writeFile(wb, "filtered_bills_report.xlsx");
+    } else if (format === 'pdf') {
+      if (typeof window.jspdf === 'undefined' && typeof jsPDF === 'undefined') {
+        alert("PDF Generation library not loaded. Generating CSV copy instead.");
+        exportFilteredBillsCSV(data);
+        return;
+      }
+      
+      var doc = new (window.jspdf ? window.jspdf.jsPDF : jsPDF)('p', 'pt', 'a4');
+      
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(18);
+      doc.setTextColor(10, 22, 40);
+      doc.text("PropCollect - Filtered Bills & Reports", 40, 50);
+      
+      doc.setFont("Helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Generated on: " + new Date().toLocaleString(), 40, 70);
+      doc.text("Total Records: " + data.length, 40, 85);
+      
+      var tableHeaders = [
+        ["Date", "Day", "Supervisor", "Collector", "Acc #", "Status", "Paid"]
+      ];
+      
+      var tableRows = data.map(function(r) {
+        return [
+          r.date,
+          r.dayLabel,
+          r.sup,
+          r.coll,
+          r.accountNumber,
+          r.delivered,
+          r.amountPaid
+        ];
+      });
+      
+      if (typeof doc.autoTable === 'function') {
+        doc.autoTable({
+          head: tableHeaders,
+          body: tableRows,
+          startY: 110,
+          theme: 'striped',
+          headStyles: { fillColor: [10, 22, 40] },
+          styles: { fontSize: 8 }
+        });
+        doc.save("filtered_bills_report.pdf");
+      } else {
+        alert("autoTable plugin is not available. Saving as Excel instead.");
+        exportFilteredBills('excel');
+      }
+    }
+  }
+
+  function exportFilteredBillsCSV(data) {
+    var headers = ["Date", "Day", "Supervisor", "Collector", "Account Number", "Type", "Bill Amount", "Status", "Ratepayer", "Paid", "Mode", "Reason"];
+    var csvRows = [headers.join(",")];
+    data.forEach(function(r) {
+      var row = [
+        r.date, r.dayLabel, r.sup, r.coll, r.accountNumber, r.useType, r.billAmount,
+        r.delivered, r.ratepayerName, r.amountPaid, r.modeOfPayment, r.failureReason
+      ];
+      var escaped = row.map(function(val) {
+        var s = String(val).replace(/"/g, '""');
+        if (s.indexOf(',') >= 0 || s.indexOf('\n') >= 0 || s.indexOf('"') >= 0) {
+          s = '"' + s + '"';
+        }
+        return s;
+      });
+      csvRows.push(escaped.join(","));
+    });
+    var blob = new Blob([csvRows.join("\n")], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", "filtered_bills_report.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
