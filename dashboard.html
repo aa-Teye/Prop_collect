@@ -194,6 +194,7 @@
       .main-content { overflow-y: auto; }
     }
   </style>
+  <script src="billsData.js"></script>
 </head>
 <body>
 
@@ -1892,8 +1893,13 @@
 
   // New Exporter: All Bills Report with Attempts Count
   function exportAllBills() {
+    if (!window.ALL_BILLS) {
+      alert('Bills database loading... Please wait 2 seconds and try again.');
+      return;
+    }
+
     if (!allLogs || allLogs.length === 0) {
-      alert('No data to export. Please refresh.');
+      alert('No submission data found. Please refresh the dashboard.');
       return;
     }
 
