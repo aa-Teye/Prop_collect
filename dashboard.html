@@ -282,6 +282,47 @@
 
   <!-- TAB 1: OVERVIEW -->
   <div id="tab-overview" class="tab-content active">
+    <div style="display:flex;gap:8px; margin-bottom:24px;flex-wrap:wrap;">
+      <button onclick="setOverviewPeriod('today')"
+        id="periodToday"
+        style="padding:8px 16px;border-radius:20px;
+        background:#006B3F;color:white;border:none;
+        font-weight:700;cursor:pointer;font-size:13px;">
+        Today
+      </button>
+      <button onclick="setOverviewPeriod('yesterday')"
+        id="periodYesterday"
+        style="padding:8px 16px;border-radius:20px;
+        background:#e2e8f0;color:#0a1628;border:none;
+        font-weight:700;cursor:pointer;font-size:13px;">
+        Yesterday
+      </button>
+      <button onclick="setOverviewPeriod('week')"
+        id="periodWeek"
+        style="padding:8px 16px;border-radius:20px;
+        background:#e2e8f0;color:#0a1628;border:none;
+        font-weight:700;cursor:pointer;font-size:13px;">
+        This Week
+      </button>
+      <button onclick="setOverviewPeriod('all')"
+        id="periodAll"
+        style="padding:8px 16px;border-radius:20px;
+        background:#e2e8f0;color:#0a1628;border:none;
+        font-weight:700;cursor:pointer;font-size:13px;">
+        All Time
+      </button>
+      <input type="date" id="periodCustomDate"
+        onchange="setOverviewPeriod('custom')"
+        style="padding:8px 12px;border-radius:20px;
+        border:2px solid #e2e8f0;font-size:13px;">
+    </div>
+
+    <div id="overviewPeriodLabel"
+      style="font-size:13px;color:#64748b;
+      margin-bottom:16px;font-weight:600;">
+      Today's Overview
+    </div>
+
     <div class="grid-4" style="margin-bottom: 20px;">
       <div class="card">
         <div class="stat-label">Total Bills Today</div>
@@ -316,6 +357,27 @@
         <div style="margin-top: 8px; font-size: 12px; color: #94a3b8;">
           Yesterday: <span id="ov-yesterday-activity" style="font-weight: 600; color: white;">0</span>
         </div>
+      </div>
+    </div>
+
+    <!-- Supervisor Activity Breakdown Section -->
+    <div class="card" style="margin-bottom: 20px;">
+      <h3 style="margin-top:0; color:var(--navy); border-bottom: 2px solid var(--border); padding-bottom: 10px;">Supervisor Activity Breakdown</h3>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Supervisor</th>
+              <th>Bills Submitted</th>
+              <th>Delivered</th>
+              <th>Amount Collected</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="overview-supervisor-breakdown">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
       </div>
     </div>
     
@@ -800,6 +862,64 @@
     }
   });
 
+  var currentPeriod = 'today';
+  var currentCustomDate = '';
+
+  function setOverviewPeriod(period) {
+    currentPeriod = period;
+    if (period === 'custom') {
+      currentCustomDate = document.getElementById('periodCustomDate').value;
+    }
+    var periods = ['Today','Yesterday','Week','All'];
+    periods.forEach(function(p) {
+      var btn = document.getElementById('period' + p);
+      if (btn) {
+        btn.style.background = p.toLowerCase() === period ? '#006B3F' : '#e2e8f0';
+        btn.style.color = p.toLowerCase() === period ? 'white' : '#0a1628';
+      }
+    });
+    renderOverview();
+  }
+
+  function getLogsForPeriod() {
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    var yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    var filtered = getFilteredLogs();
+    
+    return filtered.filter(function(l) {
+      if (!l.date) return false;
+      var logDate = parseLogDate(l.date);
+      if (!logDate) return false;
+      logDate.setHours(0,0,0,0);
+      
+      if (currentPeriod === 'today') {
+        return logDate.getTime() === today.getTime();
+      }
+      if (currentPeriod === 'yesterday') {
+        return logDate.getTime() === yesterday.getTime();
+      }
+      if (currentPeriod === 'week') {
+        var weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        weekStart.setHours(0,0,0,0);
+        return logDate >= weekStart;
+      }
+      if (currentPeriod === 'all') {
+        return true;
+      }
+      if (currentPeriod === 'custom' && currentCustomDate) {
+        var customParts = currentCustomDate.split('-');
+        var customDate = new Date(customParts[0], parseInt(customParts[1]) - 1, customParts[2]);
+        customDate.setHours(0,0,0,0);
+        return logDate.getTime() === customDate.getTime();
+      }
+      return false;
+    });
+  }
+
   function renderDashboard() {
     renderAll();
   }
@@ -1090,22 +1210,18 @@
   }
 
   function renderOverview() {
-    let today = new Date().toISOString().split('T')[0];
     let tBills=0, tDeliv=0, tAmt=0, tFailed=0;
     let activeSet = new Set();
     
-    let recent = [];
+    let recent = getFilteredLogs();
+    var periodLogs = getLogsForPeriod();
     
-    getFilteredLogs().forEach(log => {
-      // Aggregate today's stats
-      if (isToday(log.date)) {
-        tBills += log.totalBills || 0;
-        tDeliv += log.totalDelivered || 0;
-        tFailed += log.totalFailed || 0;
-        tAmt += log.totalAmountCollected || 0;
-        activeSet.add(log.collector);
-      }
-      recent.push(log);
+    periodLogs.forEach(log => {
+      tBills += log.totalBills || 0;
+      tDeliv += log.totalDelivered || 0;
+      tFailed += log.totalFailed || 0;
+      tAmt += log.totalAmountCollected || 0;
+      activeSet.add(log.collector);
     });
     
     let rate = tBills > 0 ? ((tDeliv/tBills)*100).toFixed(1) : 0;
@@ -1134,28 +1250,78 @@
     document.getElementById('ov-active').innerText = activeSet.size;
     document.getElementById('ov-failed').innerText = tFailed;
     
+    // Period label update
+    var periodLabel = {
+      today: "Today's Overview",
+      yesterday: "Yesterday's Overview",
+      week: "This Week's Overview",
+      all: "All Time Overview",
+      custom: (currentCustomDate ? currentCustomDate : "Custom Date") + " Overview"
+    }[currentPeriod] || "Overview";
+
+    var labelEl = document.getElementById('overviewPeriodLabel');
+    if (labelEl) labelEl.textContent = periodLabel;
+
     // Alerts
     let alertsHtml = '';
-    const filteredLogs = getFilteredLogs();
     
     if (currentUserRole === 'researcher') {
       const sups = ['Afua Tenkorang', 'Abevi Felix Vifah', 'Linda Arthur'];
-      let supsReported = new Set(filteredLogs.filter(l => isToday(l.date)).map(l => l.supervisor));
+      let supsReported = new Set(periodLogs.map(l => l.supervisor));
       
       sups.forEach(s => {
         if (!supsReported.has(s)) {
-          alertsHtml += `<div class="alert-box alert-red">🔴 ${s} has NO reports today.</div>`;
+          alertsHtml += `<div class="alert-box alert-red">🔴 ${s} has NO reports in this period.</div>`;
         }
       });
     }
     
     if (rate < 50 && tBills > 0) {
-      alertsHtml += `<div class="alert-box alert-yellow">🟡 Overall delivery rate is below 50% today.</div>`;
+      alertsHtml += `<div class="alert-box alert-yellow">🟡 Overall delivery rate is below 50% in this period.</div>`;
     }
     
-    if (alertsHtml === '') alertsHtml = `<div class="alert-box" style="background:#dcfce7; color:#166534; border-left:4px solid #16a34a;">🟢 All metrics looking good today!</div>`;
+    if (alertsHtml === '') alertsHtml = `<div class="alert-box" style="background:#dcfce7; color:#166534; border-left:4px solid #16a34a;">🟢 All metrics looking good in this period!</div>`;
     document.getElementById('alerts-container').innerHTML = alertsHtml;
     
+    // Supervisor Activity Breakdown for period
+    var supervisorStats = {
+      'Afua Tenkorang': { bills: 0, delivered: 0, amount: 0 },
+      'Abevi Felix Vifah': { bills: 0, delivered: 0, amount: 0 },
+      'Linda Arthur': { bills: 0, delivered: 0, amount: 0 }
+    };
+
+    periodLogs.forEach(log => {
+      if (supervisorStats[log.supervisor]) {
+        supervisorStats[log.supervisor].bills += log.totalBills || 0;
+        supervisorStats[log.supervisor].delivered += log.totalDelivered || 0;
+        supervisorStats[log.supervisor].amount += log.totalAmountCollected || 0;
+      }
+    });
+
+    var breakdownHtml = '';
+    for (var sName in supervisorStats) {
+      if (currentUserRole === 'supervisor' && sName !== currentUserName) {
+        continue;
+      }
+      var sStat = supervisorStats[sName];
+      var statusText = sStat.bills > 0 ? 
+        '<span class="badge badge-green">✅ Active</span>' : 
+        '<span class="badge badge-red">⚠ No Activity</span>';
+      
+      breakdownHtml += `<tr>
+        <td><strong>${sName}</strong></td>
+        <td>${sStat.bills}</td>
+        <td>${sStat.delivered}</td>
+        <td>GHS ${sStat.amount.toFixed(2)}</td>
+        <td>${statusText}</td>
+      </tr>`;
+    }
+    
+    var breakdownContainer = document.getElementById('overview-supervisor-breakdown');
+    if (breakdownContainer) {
+      breakdownContainer.innerHTML = breakdownHtml;
+    }
+
     // Recent
     recent.sort((a,b) => new Date(b.submissionTime) - new Date(a.submissionTime));
     let rHtml = '';
