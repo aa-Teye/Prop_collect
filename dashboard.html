@@ -2141,8 +2141,14 @@
             bill.amountPaid.toFixed(2) : '0.00',
           bill.modeOfPayment || '—',
           bill.failureReason || '—',
-          bill.lastDate ? 
-            formatDisplayDate(bill.lastDate) : '—'
+          bill.lastDate ? (function(d) {
+            var dt = new Date(d);
+            if (isNaN(dt.getTime())) return d;
+            var day = String(dt.getDate()).padStart(2,'0');
+            var month = String(dt.getMonth()+1).padStart(2,'0');
+            var year = dt.getFullYear();
+            return day + '/' + month + '/' + year;
+          })(bill.lastDate) : '—'
         ];
       }
     );
