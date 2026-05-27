@@ -1263,27 +1263,22 @@
 
       var customBorder = '';
       var statusBadgeStyle = 'display:none;';
-      var statusBadgeHtml = '';
-      var btnYesClass = '';
-      var btnNoClass = '';
-      var formYesClass = '';
-      var formNoClass = '';
+      var statusBadgeHtml = '✅ Submitted';
+      var formStyle = 'display:block;';
+      var noteHtml = '';
 
       if (record) {
-        newBillObj.submitted = true;
-        newBillObj.delivered = record.delivered;
         if (record.delivered === 'yes') {
           customBorder = 'border: 2px solid #22c55e;';
-          statusBadgeStyle = 'display:inline-block; margin-bottom:12px;';
-          statusBadgeHtml = '<span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">✅ Submitted</span>';
-          btnYesClass = 'active-yes';
-          formYesClass = 'active';
+          statusBadgeStyle = 'display:block; text-align:center; padding:10px; background:#dcfce7; color:#166534; font-weight:bold; border-radius:8px; margin-bottom:15px;';
+          statusBadgeHtml = '✅ Delivered on ' + record.date;
+          formStyle = 'display:none;';
+          noteHtml = '<div style="text-align:center;color:#15803d;font-weight:600;margin-top:10px;">Bill already delivered and submitted</div>';
+          newBillObj.submitted = true;
         } else if (record.delivered === 'no') {
           customBorder = 'border: 2px solid #f97316;';
-          statusBadgeStyle = 'display:inline-block; margin-bottom:12px;';
-          statusBadgeHtml = '<span style="background:#ffedd5; color:#c2410c; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">❌ Submitted</span>';
-          btnNoClass = 'active-no';
-          formNoClass = 'active';
+          statusBadgeStyle = 'display:block; text-align:center; padding:10px; background:#ffedd5; color:#c2410c; font-weight:bold; border-radius:8px; margin-bottom:15px;';
+          statusBadgeHtml = '❌ Not delivered - tap to update';
         }
       }
 
@@ -1306,15 +1301,16 @@
       </div>
       
       <div id="status-badge-${idx}" style="${statusBadgeStyle}">${statusBadgeHtml}</div>
+      ${noteHtml}
 
-      <div id="form-content-${idx}" style="display:block;">
+      <div id="form-content-${idx}" style="${formStyle}">
         <label style="color:var(--navy);">Delivered?</label>
         <div class="delivery-buttons">
-          <button type="button" id="btn-yes-${idx}" class="${btnYesClass}" onclick="setDelivery(${idx}, 'yes')">YES</button>
-          <button type="button" id="btn-no-${idx}" class="${btnNoClass}" onclick="setDelivery(${idx}, 'no')">NO</button>
+          <button type="button" id="btn-yes-${idx}" onclick="setDelivery(${idx}, 'yes')">YES</button>
+          <button type="button" id="btn-no-${idx}" onclick="setDelivery(${idx}, 'no')">NO</button>
         </div>
         
-        <div id="form-yes-${idx}" class="details-form ${formYesClass}">
+        <div id="form-yes-${idx}" class="details-form">
           <div class="form-group">
             <label style="color:var(--navy);">Ratepayer Name *</label>
             <input type="text" id="rp-name-${idx}">
@@ -1342,7 +1338,7 @@
           </div>
         </div>
         
-        <div id="form-no-${idx}" class="details-form ${formNoClass}">
+        <div id="form-no-${idx}" class="details-form">
           <div class="form-group">
             <label style="color:var(--navy);">Reason</label>
             <select id="rp-reason-${idx}" onchange="toggleOtherReason(${idx})">
@@ -1368,6 +1364,7 @@
     }
 
     function setDelivery(idx, status) {
+      if (formBills[idx].submitted) return;
       formBills[idx].delivered = status;
 
       document.getElementById(`btn-yes-${idx}`).classList.remove('active-yes');
@@ -1610,7 +1607,7 @@
         };
         sessionStorage.setItem('submittedBills', JSON.stringify(submittedBills));
 
-        // Visually update the card immediately based on the new submission (keeping the card editable)
+        // Visually update the card immediately based on the new submission
         const card = document.getElementById(`bill-card-${idx}`);
         const statusBadge = document.getElementById(`status-badge-${idx}`);
         const formContent = document.getElementById(`form-content-${idx}`);
@@ -1618,25 +1615,46 @@
         if (b.delivered === 'yes') {
           if (card) card.style.border = '2px solid #22c55e';
           if (statusBadge) {
-            statusBadge.style.display = 'inline-block';
+            statusBadge.style.display = 'block';
             statusBadge.className = '';
-            statusBadge.setAttribute('style', 'display:inline-block; margin-bottom:12px;');
-            statusBadge.innerHTML = '<span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">✅ Submitted</span>';
+            statusBadge.setAttribute('style', 'display:block; text-align:center; padding:10px; background:#dcfce7; color:#166534; font-weight:bold; border-radius:8px; margin-bottom:15px;');
+            statusBadge.textContent = '✅ Delivered on ' + dateStr;
+          }
+          if (formContent) {
+            formContent.style.display = 'none';
+          }
+
+          // Add note element below status badge
+          var note = document.createElement('div');
+          note.setAttribute('style', 'text-align:center;color:#15803d;font-weight:600;margin-top:10px;');
+          note.textContent = 'Bill already delivered and submitted';
+          if (statusBadge) {
+            statusBadge.parentNode.insertBefore(note, statusBadge.nextSibling);
           }
         } else {
           if (card) card.style.border = '2px solid #f97316';
           if (statusBadge) {
-            statusBadge.style.display = 'inline-block';
+            statusBadge.style.display = 'block';
             statusBadge.className = '';
-            statusBadge.setAttribute('style', 'display:inline-block; margin-bottom:12px;');
-            statusBadge.innerHTML = '<span style="background:#ffedd5; color:#c2410c; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">❌ Submitted</span>';
+            statusBadge.setAttribute('style', 'display:block; text-align:center; padding:10px; background:#ffedd5; color:#c2410c; font-weight:bold; border-radius:8px; margin-bottom:15px;');
+            statusBadge.textContent = '❌ Not delivered - tap to update';
+          }
+          if (formContent) {
+            formContent.style.display = 'block';
           }
         }
-        if (formContent) {
-          formContent.style.display = 'block';
-        }
 
-        updateProgress();
+        submittedCount++;
+        var pct = Math.round((submittedCount / totalBills) * 100);
+        var progressText = document.getElementById('progressText');
+        var progressBar = document.getElementById('progressBar');
+        if (progressText) {
+          progressText.textContent = submittedCount +
+            ' of ' + totalBills + ' bills submitted';
+        }
+        if (progressBar) {
+          progressBar.style.width = pct + '%';
+        }
         showToast('Bill Submitted Successfully!');
       }).catch(err => {
         console.error(err);
