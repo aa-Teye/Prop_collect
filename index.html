@@ -1261,105 +1261,107 @@
       var submittedBills = JSON.parse(sessionStorage.getItem('submittedBills') || '{}');
       var record = submittedBills[bill.accountNumber];
 
+      var customBorder = '';
+      var statusBadgeStyle = 'display:none;';
+      var statusBadgeHtml = '';
+      var btnYesClass = '';
+      var btnNoClass = '';
+      var formYesClass = '';
+      var formNoClass = '';
+
       if (record) {
         newBillObj.submitted = true;
         newBillObj.delivered = record.delivered;
-        var badgeText = record.delivered === 'yes' ? '✅ Submitted' : '❌ Submitted';
-        var badgeColor = record.delivered === 'yes' ? '#dcfce7' : '#ffedd5';
-        var badgeTextColor = record.delivered === 'yes' ? '#15803d' : '#c2410c';
-        var borderStyle = record.delivered === 'yes' ? 'border: 2px solid #22c55e;' : 'border: 2px solid #f97316;';
-        var cardBackground = record.delivered === 'yes' ? 'background:#f0fdf4;' : 'background:#fff7ed;';
-
-        card.setAttribute('style', borderStyle + ' ' + cardBackground + ' border-radius:12px; padding:16px; margin-bottom:12px;');
-        card.innerHTML = `
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <span style="font-weight:700;color:#0a1628;font-size:18px;">${accNo}</span>
-            <span style="background:${badgeColor};color:${badgeTextColor};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${badgeText}</span>
-          </div>
-          
-          <div style="font-size:12px;color:#64748b;margin-bottom:12px;">
-            ${ownerName} · ${rateType} · GHS ${currentBill}
-          </div>
-          
-          <button onclick="reviewAndEdit('${accNo}')"
-            style="width:100%;padding:12px;background:white;color:#0a1628;border:2px solid #0a1628;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;">
-            🔍 Review & Edit
-          </button>
-        `;
-      } else {
-        card.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
-            <div>
-              <strong style="font-size:18px;">${accNo}</strong>
-              <div style="color:#64748b; font-size:14px; margin-top:4px;">${ownerName}</div>
-            </div>
-            <span class="badge" style="background:${badgeColor}; color:${badgeText}; padding:4px 8px; border-radius:4px; font-weight:bold;">${rateType}</span>
-          </div>
-          <div style="margin-bottom:15px;">
-            <div style="font-size:14px; color:#64748b;">Current Bill</div>
-            <div style="font-size:22px; font-weight:bold; color:var(--green);">GHS ${currentBill}</div>
-            <div style="font-size:14px; color:#ef4444; margin-top:4px; font-weight:600;">Balance: GHS ${balance}</div>
-          </div>
-          
-          <div id="status-badge-${idx}" style="display:none;"></div>
-
-          <div id="form-content-${idx}" style="display:block;">
-            <label style="color:var(--navy);">Delivered?</label>
-            <div class="delivery-buttons">
-              <button type="button" id="btn-yes-${idx}" onclick="setDelivery(${idx}, 'yes')">YES</button>
-              <button type="button" id="btn-no-${idx}" onclick="setDelivery(${idx}, 'no')">NO</button>
-            </div>
-            
-            <div id="form-yes-${idx}" class="details-form">
-              <div class="form-group">
-                <label style="color:var(--navy);">Ratepayer Name *</label>
-                <input type="text" id="rp-name-${idx}">
-              </div>
-              <div class="form-group">
-                <label style="color:var(--navy);">Ratepayer Phone</label>
-                <input type="text" id="rp-phone-${idx}">
-              </div>
-              <div class="form-group">
-                <label style="color:var(--navy);">Amount Paid (GHS) *</label>
-                <input type="number" step="0.01" id="rp-amount-${idx}">
-              </div>
-              <div class="form-group">
-                <label style="color:var(--navy);">Mode of Payment</label>
-                <select id="rp-mode-${idx}">
-                  <option value="Cash">Cash</option>
-                  <option value="Mobile Money">Mobile Money</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Cheque">Cheque</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label style="color:var(--navy);">Receipt/Ref #</label>
-                <input type="text" id="rp-receipt-${idx}">
-              </div>
-            </div>
-            
-            <div id="form-no-${idx}" class="details-form">
-              <div class="form-group">
-                <label style="color:var(--navy);">Reason</label>
-                <select id="rp-reason-${idx}" onchange="toggleOtherReason(${idx})">
-                  <option value="Property Not Found">Property Not Found</option>
-                  <option value="Ratepayer Not Around">Ratepayer Not Around</option>
-                  <option value="Property Locked">Property Locked</option>
-                  <option value="Ratepayer Refused">Ratepayer Refused</option>
-                  <option value="Wrong Address">Wrong Address</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div class="form-group" id="other-reason-group-${idx}" style="display:none;">
-                <label style="color:var(--navy);">Other Reason *</label>
-                <input type="text" id="rp-other-${idx}">
-              </div>
-            </div>
-            
-            <button type="button" class="btn btn-green" style="margin-top:15px; width:100%;" id="submit-btn-${idx}" onclick="openReviewModal(${idx})">📋 Review & Submit</button>
-          </div>
-        `;
+        if (record.delivered === 'yes') {
+          customBorder = 'border: 2px solid #22c55e;';
+          statusBadgeStyle = 'display:inline-block; margin-bottom:12px;';
+          statusBadgeHtml = '<span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">✅ Submitted</span>';
+          btnYesClass = 'active-yes';
+          formYesClass = 'active';
+        } else if (record.delivered === 'no') {
+          customBorder = 'border: 2px solid #f97316;';
+          statusBadgeStyle = 'display:inline-block; margin-bottom:12px;';
+          statusBadgeHtml = '<span style="background:#ffedd5; color:#c2410c; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">❌ Submitted</span>';
+          btnNoClass = 'active-no';
+          formNoClass = 'active';
+        }
       }
+
+      if (customBorder) {
+        card.setAttribute('style', customBorder);
+      }
+
+      card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+        <div>
+          <strong style="font-size:18px;">${accNo}</strong>
+          <div style="color:#64748b; font-size:14px; margin-top:4px;">${ownerName}</div>
+        </div>
+        <span class="badge" style="background:${badgeColor}; color:${badgeText}; padding:4px 8px; border-radius:4px; font-weight:bold;">${rateType}</span>
+      </div>
+      <div style="margin-bottom:15px;">
+        <div style="font-size:14px; color:#64748b;">Current Bill</div>
+        <div style="font-size:22px; font-weight:bold; color:var(--green);">GHS ${currentBill}</div>
+        <div style="font-size:14px; color:#ef4444; margin-top:4px; font-weight:600;">Balance: GHS ${balance}</div>
+      </div>
+      
+      <div id="status-badge-${idx}" style="${statusBadgeStyle}">${statusBadgeHtml}</div>
+
+      <div id="form-content-${idx}" style="display:block;">
+        <label style="color:var(--navy);">Delivered?</label>
+        <div class="delivery-buttons">
+          <button type="button" id="btn-yes-${idx}" class="${btnYesClass}" onclick="setDelivery(${idx}, 'yes')">YES</button>
+          <button type="button" id="btn-no-${idx}" class="${btnNoClass}" onclick="setDelivery(${idx}, 'no')">NO</button>
+        </div>
+        
+        <div id="form-yes-${idx}" class="details-form ${formYesClass}">
+          <div class="form-group">
+            <label style="color:var(--navy);">Ratepayer Name *</label>
+            <input type="text" id="rp-name-${idx}">
+          </div>
+          <div class="form-group">
+            <label style="color:var(--navy);">Ratepayer Phone</label>
+            <input type="text" id="rp-phone-${idx}">
+          </div>
+          <div class="form-group">
+            <label style="color:var(--navy);">Amount Paid (GHS) *</label>
+            <input type="number" step="0.01" id="rp-amount-${idx}">
+          </div>
+          <div class="form-group">
+            <label style="color:var(--navy);">Mode of Payment</label>
+            <select id="rp-mode-${idx}">
+              <option value="Cash">Cash</option>
+              <option value="Mobile Money">Mobile Money</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Cheque">Cheque</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label style="color:var(--navy);">Receipt/Ref #</label>
+            <input type="text" id="rp-receipt-${idx}">
+          </div>
+        </div>
+        
+        <div id="form-no-${idx}" class="details-form ${formNoClass}">
+          <div class="form-group">
+            <label style="color:var(--navy);">Reason</label>
+            <select id="rp-reason-${idx}" onchange="toggleOtherReason(${idx})">
+              <option value="Property Not Found">Property Not Found</option>
+              <option value="Ratepayer Not Around">Ratepayer Not Around</option>
+              <option value="Property Locked">Property Locked</option>
+              <option value="Ratepayer Refused">Ratepayer Refused</option>
+              <option value="Wrong Address">Wrong Address</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group" id="other-reason-group-${idx}" style="display:none;">
+            <label style="color:var(--navy);">Other Reason *</label>
+            <input type="text" id="rp-other-${idx}">
+          </div>
+        </div>
+        
+        <button type="button" class="btn btn-green" style="margin-top:15px; width:100%;" id="submit-btn-${idx}" onclick="openReviewModal(${idx})">📋 Review & Submit</button>
+      </div>
     `;
       container.appendChild(card);
       updateProgress();
@@ -1418,83 +1420,11 @@
 
     let currentReviewIdx = -1;
 
-    // Helper functions for dynamic interaction in edit modal
-    window.toggleEditForm = function(idx) {
-      var val = document.getElementById('edit-delivered-' + idx).value;
-      document.getElementById('edit-yes-form-' + idx).style.display = val === 'yes' ? 'block' : 'none';
-      document.getElementById('edit-no-form-' + idx).style.display = val === 'no' ? 'block' : 'none';
-    };
-    
-    window.toggleEditOtherReason = function(idx) {
-      var val = document.getElementById('edit-rp-reason-' + idx).value;
-      document.getElementById('edit-other-reason-group-' + idx).style.display = val === 'Other' ? 'block' : 'none';
-    };
-
-    function reviewAndEdit(accountNumber) {
-      var state = window.state || {};
-      var bills = state.bills || window.ALL_BILLS || formBills;
-      var bill = bills.find(function(b) {
-        return b.accountNumber === accountNumber;
-      });
-      if (!bill) {
-        bill = formBills.find(function(b) {
-          return b.accountNumber === accountNumber;
-        });
-      }
-      if (!bill) return;
-      
-      var submitted = JSON.parse(
-        sessionStorage.getItem('submittedBills') 
-        || '{}');
-      var record = submitted[accountNumber];
-      
-      bill.delivered = record ? 
-        record.delivered : '';
-      bill.ratepayerName = record ? 
-        record.ratepayerName : '';
-      bill.ratepayerPhone = record ? 
-        record.ratepayerPhone : '';
-      bill.amountPaid = record ? 
-        record.amountPaid : '';
-      bill.modeOfPayment = record ? 
-        record.modeOfPayment : '';
-      bill.receiptRef = record ? 
-        record.receiptRef : '';
-      bill.failureReason = record ? 
-        record.failureReason : '';
-      
-      openReviewModal(bill, true);
-    }
-
-    let currentReviewIdx = -1;
-
-    function openReviewModal(idxOrBill, isEdit) {
-      let b;
-      let idx;
-      if (typeof idxOrBill === 'number') {
-        idx = idxOrBill;
-        b = formBills[idx];
-      } else {
-        b = idxOrBill;
-        idx = formBills.findIndex(function(x) {
-          return x.accountNumber === b.accountNumber;
-        });
-      }
-
-      if (idx === -1) return;
-
-      var modalTitle = document.getElementById('modal-title');
-      if (modalTitle) {
-        modalTitle.textContent = isEdit ? '✏ Edit Submission' : 'Review Bill Submission';
-      } else {
-        var titleEl = document.querySelector('#review-modal h3');
-        if (titleEl) titleEl.textContent = isEdit ? '✏ Edit Submission' : 'Review Bill Submission';
-      }
-
-      var confirmBtn = document.getElementById('modal-confirm-btn');
-      if (confirmBtn) {
-        confirmBtn.textContent = isEdit ? '✅ Update Submission' : '✅ Confirm & Submit';
-        confirmBtn.onclick = () => submitSingleBill(idx, isEdit);
+    function openReviewModal(idx) {
+      const b = formBills[idx];
+      if (!b.delivered) {
+        showToast('Please select YES or NO');
+        return;
       }
 
       var previousAttempts = allLogs ? 
@@ -1516,121 +1446,53 @@
         </p>`;
       }
 
-      let detailsHtml = '';
+      let detailsHtml = `
+      ${attemptHtml}
+      <p><strong>Account Number:</strong> ${b.accountNumber}</p>
+      <p><strong>Use Type:</strong> <span class="badge" style="background:#fcd116; color:#000; padding:2px 6px; border-radius:4px;">${b.rateType}</span></p>
+      <p><strong>Bill Amount:</strong> GHS ${parseFloat(b.currentBill || 0).toFixed(2)}</p>
+      <p><strong>Delivered:</strong> ${b.delivered === 'yes' ? '✅ YES' : '❌ NO'}</p>
+      <hr style="border:0; border-top:1px solid #e2e8f0; margin:10px 0;">
+    `;
 
-      if (isEdit) {
-        // Edit mode: show inputs inside modal for direct editing!
-        detailsHtml = `
-          ${attemptHtml}
-          <div class="form-group" style="margin-bottom:12px;">
-            <label style="color:var(--navy); font-weight:700;">Account Number</label>
-            <input type="text" value="${b.accountNumber}" readonly style="background:#f1f5f9; color:#64748b; width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;">
-          </div>
-          <div class="form-group" style="margin-bottom:12px;">
-            <label style="color:var(--navy); font-weight:700;">Delivered?</label>
-            <select id="edit-delivered-${idx}" onchange="toggleEditForm(${idx})" style="color:black; width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;">
-              <option value="yes" ${b.delivered === 'yes' ? 'selected' : ''}>YES</option>
-              <option value="no" ${b.delivered === 'no' ? 'selected' : ''}>NO</option>
-            </select>
-          </div>
-          
-          <div id="edit-yes-form-${idx}" style="display: ${b.delivered === 'yes' ? 'block' : 'none'}; border-top: 1px solid #e2e8f0; padding-top:10px;">
-            <div class="form-group" style="margin-bottom:12px;">
-              <label style="color:var(--navy); font-weight:700;">Ratepayer Name *</label>
-              <input type="text" id="edit-rp-name-${idx}" value="${b.ratepayerName || ''}" style="color:black; width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;">
-            </div>
-            <div class="form-group" style="margin-bottom:12px;">
-              <label style="color:var(--navy); font-weight:700;">Ratepayer Phone</label>
-              <input type="text" id="edit-rp-phone-${idx}" value="${b.ratepayerPhone || ''}" style="color:black; width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;">
-            </div>
-            <div class="form-group" style="margin-bottom:12px;">
-              <label style="color:var(--navy); font-weight:700;">Amount Paid (GHS) *</label>
-              <input type="number" step="0.01" id="edit-rp-amount-${idx}" value="${b.amountPaid || ''}" style="color:black; width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;">
-            </div>
-            <div class="form-group" style="margin-bottom:12px;">
-              <label style="color:var(--navy); font-weight:700;">Mode of Payment</label>
-              <select id="edit-rp-mode-${idx}" style="color:black; width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;">
-                <option value="Cash" ${b.modeOfPayment === 'Cash' ? 'selected' : ''}>Cash</option>
-                <option value="Mobile Money" ${b.modeOfPayment === 'Mobile Money' ? 'selected' : ''}>Mobile Money</option>
-                <option value="Bank Transfer" ${b.modeOfPayment === 'Bank Transfer' ? 'selected' : ''}>Bank Transfer</option>
-                <option value="Cheque" ${b.modeOfPayment === 'Cheque' ? 'selected' : ''}>Cheque</option>
-              </select>
-            </div>
-            <div class="form-group" style="margin-bottom:12px;">
-              <label style="color:var(--navy); font-weight:700;">Receipt/Ref #</label>
-              <input type="text" id="edit-rp-receipt-${idx}" value="${b.receiptRef || ''}" style="color:black; width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;">
-            </div>
-          </div>
-          
-          <div id="edit-no-form-${idx}" style="display: ${b.delivered === 'no' ? 'block' : 'none'}; border-top: 1px solid #e2e8f0; padding-top:10px;">
-            <div class="form-group" style="margin-bottom:12px;">
-              <label style="color:var(--navy); font-weight:700;">Reason</label>
-              <select id="edit-rp-reason-${idx}" onchange="toggleEditOtherReason(${idx})" style="color:black; width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;">
-                <option value="Property Not Found" ${b.failureReason === 'Property Not Found' ? 'selected' : ''}>Property Not Found</option>
-                <option value="Ratepayer Not Around" ${b.failureReason === 'Ratepayer Not Around' ? 'selected' : ''}>Ratepayer Not Around</option>
-                <option value="Property Locked" ${b.failureReason === 'Property Locked' ? 'selected' : ''}>Property Locked</option>
-                <option value="Ratepayer Refused" ${b.failureReason === 'Ratepayer Refused' ? 'selected' : ''}>Ratepayer Refused</option>
-                <option value="Wrong Address" ${b.failureReason === 'Wrong Address' ? 'selected' : ''}>Wrong Address</option>
-                <option value="Other" ${['Property Not Found', 'Ratepayer Not Around', 'Property Locked', 'Ratepayer Refused', 'Wrong Address'].indexOf(b.failureReason) === -1 && b.failureReason ? 'selected' : ''}>Other</option>
-              </select>
-            </div>
-            <div class="form-group" id="edit-other-reason-group-${idx}" style="display: ${['Property Not Found', 'Ratepayer Not Around', 'Property Locked', 'Ratepayer Refused', 'Wrong Address'].indexOf(b.failureReason) === -1 && b.failureReason ? 'block' : 'none'}; margin-bottom:12px;">
-              <label style="color:var(--navy); font-weight:700;">Other Reason *</label>
-              <input type="text" id="edit-rp-other-${idx}" value="${['Property Not Found', 'Ratepayer Not Around', 'Property Locked', 'Ratepayer Refused', 'Wrong Address'].indexOf(b.failureReason) === -1 ? b.failureReason || '' : ''}" style="color:black; width:100%; padding:8px; border-radius:6px; border:1px solid #cbd5e1;">
-            </div>
-          </div>
-        `;
-      } else {
-        if (!b.delivered) {
-          showToast('Please select YES or NO');
+      if (b.delivered === 'yes') {
+        const name = document.getElementById(`rp-name-${idx}`).value.trim();
+        const phone = document.getElementById(`rp-phone-${idx}`).value.trim();
+        const amt = document.getElementById(`rp-amount-${idx}`).value;
+        const mode = document.getElementById(`rp-mode-${idx}`).value;
+        const ref = document.getElementById(`rp-receipt-${idx}`).value.trim();
+
+        if (!name || !amt) {
+          showToast('Please fill Ratepayer Name and Amount Paid');
           return;
         }
 
-        detailsHtml = `
-          ${attemptHtml}
-          <p><strong>Account Number:</strong> ${b.accountNumber}</p>
-          <p><strong>Use Type:</strong> <span class="badge" style="background:#fcd116; color:#000; padding:2px 6px; border-radius:4px;">${b.rateType}</span></p>
-          <p><strong>Bill Amount:</strong> GHS ${parseFloat(b.currentBill || 0).toFixed(2)}</p>
-          <p><strong>Delivered:</strong> ${b.delivered === 'yes' ? '✅ YES' : '❌ NO'}</p>
-          <hr style="border:0; border-top:1px solid #e2e8f0; margin:10px 0;">
-        `;
-
-        if (b.delivered === 'yes') {
-          const name = document.getElementById(`rp-name-${idx}`).value.trim();
-          const phone = document.getElementById(`rp-phone-${idx}`).value.trim();
-          const amt = document.getElementById(`rp-amount-${idx}`).value;
-          const mode = document.getElementById(`rp-mode-${idx}`).value;
-          const ref = document.getElementById(`rp-receipt-${idx}`).value.trim();
-
-          if (!name || !amt) {
-            showToast('Please fill Ratepayer Name and Amount Paid');
+        detailsHtml += `
+        <p><strong>Ratepayer Name:</strong> ${name}</p>
+        <p><strong>Ratepayer Phone:</strong> ${phone || '-'}</p>
+        <p><strong>Amount Paid:</strong> GHS ${parseFloat(amt).toFixed(2)}</p>
+        <p><strong>Mode of Payment:</strong> ${mode}</p>
+        <p><strong>Receipt/Ref #:</strong> ${ref || '-'}</p>
+      `;
+      } else {
+        const reason = document.getElementById(`rp-reason-${idx}`).value;
+        let finalReason = reason;
+        if (reason === 'Other') {
+          const other = document.getElementById(`rp-other-${idx}`).value.trim();
+          if (!other) {
+            showToast('Please specify the Other reason');
             return;
           }
-
-          detailsHtml += `
-            <p><strong>Ratepayer Name:</strong> ${name}</p>
-            <p><strong>Ratepayer Phone:</strong> ${phone || '-'}</p>
-            <p><strong>Amount Paid:</strong> GHS ${parseFloat(amt).toFixed(2)}</p>
-            <p><strong>Mode of Payment:</strong> ${mode}</p>
-            <p><strong>Receipt/Ref #:</strong> ${ref || '-'}</p>
-          `;
-        } else {
-          const reason = document.getElementById(`rp-reason-${idx}`).value;
-          let finalReason = reason;
-          if (reason === 'Other') {
-            const other = document.getElementById(`rp-other-${idx}`).value.trim();
-            if (!other) {
-              showToast('Please specify the Other reason');
-              return;
-            }
-            finalReason = other;
-          }
-          detailsHtml += `<p><strong>Failure Reason:</strong> ${finalReason}</p>`;
+          finalReason = other;
         }
+        detailsHtml += `<p><strong>Failure Reason:</strong> ${finalReason}</p>`;
       }
 
       currentReviewIdx = idx;
       document.getElementById('modal-details').innerHTML = detailsHtml;
+
+      const confirmBtn = document.getElementById('modal-confirm-btn');
+      confirmBtn.onclick = () => submitSingleBill(idx);
 
       document.getElementById('review-modal').style.display = 'flex';
     }
@@ -1648,7 +1510,7 @@
       });
     }
 
-    function submitSingleBill(idx, isEdit) {
+    function submitSingleBill(idx) {
       const b = formBills[idx];
       var state = window.state;
 
@@ -1666,48 +1528,19 @@
       var paymentMode = '';
       var refNumber = '';
       var failReason = '';
-      var deliveredVal = b.delivered;
 
-      if (isEdit) {
-        deliveredVal = document.getElementById(`edit-delivered-${idx}`).value;
-        b.delivered = deliveredVal;
-        if (deliveredVal === 'yes') {
-          rName = document.getElementById(`edit-rp-name-${idx}`).value.trim();
-          rPhone = document.getElementById(`edit-rp-phone-${idx}`).value.trim();
-          amtPaid = parseFloat(document.getElementById(`edit-rp-amount-${idx}`).value) || 0;
-          paymentMode = document.getElementById(`edit-rp-mode-${idx}`).value;
-          refNumber = document.getElementById(`edit-rp-receipt-${idx}`).value.trim();
-          
-          if (!rName || isNaN(amtPaid)) {
-            showToast('Please fill Ratepayer Name and Amount Paid');
-            return;
-          }
-        } else {
-          var reason = document.getElementById(`edit-rp-reason-${idx}`).value;
-          if (reason === 'Other') {
-            failReason = document.getElementById(`edit-rp-other-${idx}`).value.trim();
-            if (!failReason) {
-              showToast('Please specify the Other reason');
-              return;
-            }
-          } else {
-            failReason = reason;
-          }
-        }
+      if (b.delivered === 'yes') {
+        rName = document.getElementById(`rp-name-${idx}`).value.trim();
+        rPhone = document.getElementById(`rp-phone-${idx}`).value.trim();
+        amtPaid = parseFloat(document.getElementById(`rp-amount-${idx}`).value) || 0;
+        paymentMode = document.getElementById(`rp-mode-${idx}`).value;
+        refNumber = document.getElementById(`rp-receipt-${idx}`).value.trim();
       } else {
-        if (b.delivered === 'yes') {
-          rName = document.getElementById(`rp-name-${idx}`).value.trim();
-          rPhone = document.getElementById(`rp-phone-${idx}`).value.trim();
-          amtPaid = parseFloat(document.getElementById(`rp-amount-${idx}`).value) || 0;
-          paymentMode = document.getElementById(`rp-mode-${idx}`).value;
-          refNumber = document.getElementById(`rp-receipt-${idx}`).value.trim();
+        var reason = document.getElementById(`rp-reason-${idx}`).value;
+        if (reason === 'Other') {
+          failReason = document.getElementById(`rp-other-${idx}`).value.trim();
         } else {
-          var reason = document.getElementById(`rp-reason-${idx}`).value;
-          if (reason === 'Other') {
-            failReason = document.getElementById(`rp-other-${idx}`).value.trim();
-          } else {
-            failReason = reason;
-          }
+          failReason = reason;
         }
       }
 
@@ -1748,82 +1581,59 @@
         document.getElementById('loading').style.display = 'none';
         b.submitted = true;
 
-        // Overwrite or push local database entry for instant updates in current session
-        var existingLog = allLogs.find(function(l) {
-          return l.accountNumber === b.accountNumber &&
-            l.collector === state.collector &&
-            l.date === state.date;
+        // Push new log to local database for instant update in current session
+        allLogs.push({
+          date: state.date,
+          supervisor: state.supervisor,
+          collector: state.collector,
+          unit: state.collectorUnit,
+          phone: state.collectorPhone || '',
+          accountNumber: b.accountNumber,
+          useType: b.rateType,
+          billAmount: b.currentBill,
+          delivered: b.delivered,
+          ratepayerName: rName,
+          ratepayerPhone: rPhone,
+          amountPaid: amtPaid,
+          modeOfPayment: paymentMode,
+          receiptRef: refNumber,
+          failureReason: failReason,
+          attemptNumber: attemptNumber
         });
-
-        if (existingLog) {
-          existingLog.delivered = b.delivered;
-          existingLog.ratepayerName = rName;
-          existingLog.ratepayerPhone = rPhone;
-          existingLog.amountPaid = amtPaid;
-          existingLog.modeOfPayment = paymentMode;
-          existingLog.receiptRef = refNumber;
-          existingLog.failureReason = failReason;
-        } else {
-          allLogs.push({
-            date: state.date,
-            supervisor: state.supervisor,
-            collector: state.collector,
-            unit: state.collectorUnit,
-            phone: state.collectorPhone || '',
-            accountNumber: b.accountNumber,
-            useType: b.rateType,
-            billAmount: b.currentBill,
-            delivered: b.delivered,
-            ratepayerName: rName,
-            ratepayerPhone: rPhone,
-            amountPaid: amtPaid,
-            modeOfPayment: paymentMode,
-            receiptRef: refNumber,
-            failureReason: failReason,
-            attemptNumber: attemptNumber
-          });
-        }
 
         var dateParts = state.date.split('-');
         var dateStr = dateParts[2] + '/' + dateParts[1] + '/' + dateParts[0];
         var submittedBills = JSON.parse(sessionStorage.getItem('submittedBills') || '{}');
         submittedBills[b.accountNumber] = {
           delivered: b.delivered,
-          date: dateStr,
-          ratepayerName: rName,
-          ratepayerPhone: rPhone,
-          amountPaid: amtPaid,
-          modeOfPayment: paymentMode,
-          receiptRef: refNumber,
-          failureReason: failReason
+          date: dateStr
         };
         sessionStorage.setItem('submittedBills', JSON.stringify(submittedBills));
 
-        // Visually update the card immediately based on the new submission to match CHANGE 1
+        // Visually update the card immediately based on the new submission (keeping the card editable)
         const card = document.getElementById(`bill-card-${idx}`);
-        if (card) {
-          var badgeText = b.delivered === 'yes' ? '✅ Submitted' : '❌ Submitted';
-          var badgeColor = b.delivered === 'yes' ? '#dcfce7' : '#ffedd5';
-          var badgeTextColor = b.delivered === 'yes' ? '#15803d' : '#c2410c';
-          var borderStyle = b.delivered === 'yes' ? 'border: 2px solid #22c55e;' : 'border: 2px solid #f97316;';
-          var cardBackground = b.delivered === 'yes' ? 'background:#f0fdf4;' : 'background:#fff7ed;';
+        const statusBadge = document.getElementById(`status-badge-${idx}`);
+        const formContent = document.getElementById(`form-content-${idx}`);
 
-          card.setAttribute('style', borderStyle + ' ' + cardBackground + ' border-radius:12px; padding:16px; margin-bottom:12px;');
-          card.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-              <span style="font-weight:700;color:#0a1628;font-size:18px;">${b.accountNumber}</span>
-              <span style="background:${badgeColor};color:${badgeTextColor};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">${badgeText}</span>
-            </div>
-            
-            <div style="font-size:12px;color:#64748b;margin-bottom:12px;">
-              ${b.ownerName || 'No owner name'} · ${b.rateType || 'BOP'} · GHS ${parseFloat(b.currentBill || 0).toFixed(2)}
-            </div>
-            
-            <button onclick="reviewAndEdit('${b.accountNumber}')"
-              style="width:100%;padding:12px;background:white;color:#0a1628;border:2px solid #0a1628;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;">
-              🔍 Review & Edit
-            </button>
-          `;
+        if (b.delivered === 'yes') {
+          if (card) card.style.border = '2px solid #22c55e';
+          if (statusBadge) {
+            statusBadge.style.display = 'inline-block';
+            statusBadge.className = '';
+            statusBadge.setAttribute('style', 'display:inline-block; margin-bottom:12px;');
+            statusBadge.innerHTML = '<span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">✅ Submitted</span>';
+          }
+        } else {
+          if (card) card.style.border = '2px solid #f97316';
+          if (statusBadge) {
+            statusBadge.style.display = 'inline-block';
+            statusBadge.className = '';
+            statusBadge.setAttribute('style', 'display:inline-block; margin-bottom:12px;');
+            statusBadge.innerHTML = '<span style="background:#ffedd5; color:#c2410c; padding:2px 8px; border-radius:20px; font-size:11px; font-weight:700;">❌ Submitted</span>';
+          }
+        }
+        if (formContent) {
+          formContent.style.display = 'block';
         }
 
         updateProgress();
