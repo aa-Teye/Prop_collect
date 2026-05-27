@@ -7,8 +7,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PropCollect - Ghana Property Rate Management</title>
-  <link rel="icon" type="image/svg+xml"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Crect width='24' height='24' rx='6' fill='%230a1628'/%3E%3Cpath d='M12 3L4 9v11h16V9l-8-6z' fill='%23006B3F'/%3E%3Ccircle cx='12' cy='13' r='3' fill='%23FCD116'/%3E%3Cpath d='M12 11v4M10 13h4' stroke='%230a1628' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Crect width='24' height='24' rx='6' fill='%230a1628'/%3E%3Cpath d='M12 3L4 9v11h16V9l-8-6z' fill='%23006B3F'/%3E%3Ccircle cx='12' cy='13' r='3' fill='%23FCD116'/%3E%3Cpath d='M12 11v4M10 13h4' stroke='%230a1628' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
     rel="stylesheet">
   <style>
@@ -415,7 +414,6 @@
       gap: 8px;
       box-sizing: border-box;
     }
-
     .btn-get-started:hover {
       background: rgba(252, 209, 22, 0.1);
       transform: translateY(-1px);
@@ -440,7 +438,6 @@
         transform: translateY(30px);
         opacity: 0;
       }
-
       to {
         transform: translateY(0);
         opacity: 1;
@@ -690,8 +687,7 @@
         </div>
       </div>
       <!-- Cache Status Indicator -->
-      <div id="cacheStatusIndicator"
-        style="display:none; font-size:12px; margin-top:8px; font-weight:600; text-align:center;"></div>
+      <div id="cacheStatusIndicator" style="display:none; font-size:12px; margin-top:8px; font-weight:600; text-align:center;"></div>
 
       <div id="billsLoading" style="display:none; text-align:center;padding:40px;">
         <div style="font-size:40px;">⏳</div>
@@ -736,7 +732,7 @@
             <p>Select your name and enter your 4-digit PIN to access the system.</p>
           </div>
         </div>
-
+        
         <div class="guide-item">
           <div class="guide-number">2</div>
           <div class="guide-text">
@@ -744,20 +740,17 @@
             <p>Choose one of your assigned collectors and select today's date.</p>
           </div>
         </div>
-
+        
         <div class="guide-item">
           <div class="guide-number">3</div>
           <div class="guide-text">
             <strong>📋 Record Bill Deliveries</strong>
             <p>For each bill record the delivery outcome:<br>
-              <span style="font-weight: 600; color: var(--green);">✅ YES</span> - Bill delivered successfully: Enter
-              ratepayer name, amount paid and payment method.<br>
-              <span style="font-weight: 600; color: var(--red);">❌ NO</span> - Bill not delivered: Select the reason for
-              failure.
-            </p>
+            <span style="font-weight: 600; color: var(--green);">✅ YES</span> - Bill delivered successfully: Enter ratepayer name, amount paid and payment method.<br>
+            <span style="font-weight: 600; color: var(--red);">❌ NO</span> - Bill not delivered: Select the reason for failure.</p>
           </div>
         </div>
-
+        
         <div class="guide-item">
           <div class="guide-number">4</div>
           <div class="guide-text">
@@ -765,7 +758,7 @@
             <p>Use the search bar to find any bill by account number across all 11,040 bills in the system.</p>
           </div>
         </div>
-
+        
         <div class="guide-item">
           <div class="guide-number">5</div>
           <div class="guide-text">
@@ -773,7 +766,7 @@
             <p>Click Review & Submit on each bill to confirm and save the record.</p>
           </div>
         </div>
-
+        
         <div class="guide-item">
           <div class="guide-number">6</div>
           <div class="guide-text">
@@ -781,7 +774,7 @@
             <p>The progress bar shows how many of the 160 bills have been submitted.</p>
           </div>
         </div>
-
+        
         <div class="guide-item">
           <div class="guide-number">7</div>
           <div class="guide-text">
@@ -789,7 +782,7 @@
             <p>After finishing one collector go back and select another collector.</p>
           </div>
         </div>
-
+        
         <div class="guide-warning">
           ⚠️ <strong>IMPORTANT NOTE:</strong> This system is for SUPERVISORS only. Collectors do not use this app.
         </div>
@@ -939,7 +932,7 @@
     }
 
     // Close guide modal when clicking outside its content area
-    window.addEventListener('click', function (event) {
+    window.addEventListener('click', function(event) {
       const modal = document.getElementById('guide-modal');
       if (event.target === modal) {
         modal.style.display = 'none';
@@ -1092,23 +1085,23 @@
     function loadCollectorBills(collectorName, unit) {
       var loadingEl = document.getElementById('billsLoading');
       var container = document.getElementById('bills-container');
-
+      
       if (loadingEl) loadingEl.style.display = 'none';
-
+      
       if (!window.ALL_BILLS) {
         if (container) {
-          container.innerHTML =
+          container.innerHTML = 
             '<div style="text-align:center;padding:40px;">' +
             '<p>Bills data not loaded. Please refresh.</p>' +
             '</div>';
         }
         return;
       }
-
-      var bills = window.ALL_BILLS.filter(function (b) {
+      
+      var bills = window.ALL_BILLS.filter(function(b) {
         return b.collector === collectorName;
       });
-
+      
       state.bills = bills;
       renderBillCards();
     }
@@ -1118,9 +1111,9 @@
     }
 
     function fetchDailyLogs() {
-      window.onLogsLoaded = function (data) {
+      window.onLogsLoaded = function(data) {
         if (data && data.logs) {
-          allLogs = data.logs.map(function (item) {
+          allLogs = data.logs.map(function(item) {
             return {
               date: item.date,
               day: item.day,
@@ -1152,7 +1145,7 @@
       var script = document.createElement('script');
       script.id = 'logsScript';
       script.src = SCRIPT_URL + '?action=getDailyLogs&callback=onLogsLoaded';
-      script.onerror = function () {
+      script.onerror = function() {
         console.error('Failed to load logs');
       };
       document.head.appendChild(script);
@@ -1216,12 +1209,12 @@
         return;
       }
       addBillToUI(bill);
-
+      
       var searchResult = document.getElementById('billSearchResult');
       var searchInput = document.getElementById('billSearchInput');
       if (searchResult) searchResult.innerHTML = '';
       if (searchInput) searchInput.value = '';
-
+      
       updateProgress();
     }
 
@@ -1229,7 +1222,7 @@
       var acctEl = document.getElementById('manual-acct');
       var amtEl = document.getElementById('manual-amt');
       var useEl = document.getElementById('manual-use');
-
+      
       const acct = acctEl ? acctEl.value.trim() : '';
       const amt = amtEl ? parseFloat(amtEl.value) : NaN;
       const use = useEl ? useEl.value : 'RP';
@@ -1367,7 +1360,7 @@
           </div>
         `;
       }
-      `;
+    `;
       container.appendChild(card);
       updateProgress();
     }
@@ -1937,15 +1930,15 @@
 
         if (resultDiv) {
           resultDiv.innerHTML = '';
-
+          
           var bannerEl = document.createElement('div');
           bannerEl.innerHTML = bannerHtml;
           resultDiv.appendChild(bannerEl);
-
+          
           var cardEl = document.createElement('div');
           cardEl.className = 'search-result-card';
           cardEl.setAttribute('style', 'cursor:pointer;background:white;border-radius:12px;padding:16px;border:2px solid #006B3F;text-align:left;transition: transform 0.2s, box-shadow 0.2s;');
-
+          
           cardEl.onmouseover = function() {
             this.style.transform = 'scale(1.02)';
             this.style.boxShadow = '0 4px 12px rgba(0,107,63,0.15)';
@@ -1954,15 +1947,15 @@
             this.style.transform = 'none';
             this.style.boxShadow = 'none';
           };
-
+          
           cardEl.onclick = function() {
             handleSearchClick(bill);
           };
-
-          cardEl.innerHTML =
+          
+          cardEl.innerHTML = 
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
               '<span style="font-weight:700;font-size:16px;color:#0a1628;">' + bill.accountNumber + '</span>' +
-              '<span style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:bold;padding:2px 6px;border-radius:4px;">' +
+              '<span style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:bold;padding:2px 6px;border-radius:4px;">' + 
               (isCurrentCollector ? 'Click to Open' : 'Click to Add') + '</span>' +
             '</div>' +
             '<div style="color:#64748b;font-size:13px;margin:4px 0;">' + (bill.ownerName || "No owner name") + '</div>' +
@@ -1973,7 +1966,7 @@
             '<div style="font-size:13px;">Unit: <strong>' + bill.unit + '</strong></div>' +
             '<div style="font-size:13px;">Collector: <strong>' + bill.collector + '</strong></div>' +
             '<div style="font-size:13px;">Supervisor: <strong>' + bill.supervisor + '</strong></div>';
-
+            
           resultDiv.appendChild(cardEl);
         }
 
