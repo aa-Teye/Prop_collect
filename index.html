@@ -2431,21 +2431,22 @@
     function syncSubmittedBillsFromBackend() {
       window.onBillsStatusLoaded = function(data) {
         window.onBillsStatusLoaded = null;
-        if (data && data.bills) {
-          var submitted = data.bills.map(
+        if (data && data.logs) {
+          var submitted = data.logs.map(
             function(b) {
-              var accNo = b.accountNumber || 
-                b['Account Number'] || 
+              var accNo = b['Account Number'] || 
+                b.accountNumber || 
                 b.accountNo || '';
               return {
                 accountNo: accNo,
                 account: accNo,
-                name: b.ownerName || 
-                  b['Owner Name'] || '',
-                collector: b.collector || '',
-                arm: b.arm || '',
-                date: b.date || '',
-                time: b.time || ''
+                name: b['Owner Name'] || 
+                  b.ownerName || b.name || '',
+                collector: b['Collector'] || 
+                  b.collector || '',
+                arm: b['ARM'] || b.arm || '',
+                date: b['Date'] || b.date || '',
+                time: b['Time'] || b.time || ''
               };
             });
           localStorage.removeItem('submitted_bills');
@@ -2466,7 +2467,7 @@
         'script');
       script.id = 'billStatusScript';
       script.src = SCRIPT_URL + 
-        '?action=getBills' +
+        '?action=getDailyLogs' +
         '&callback=onBillsStatusLoaded';
       script.onerror = function() {};
       document.head.appendChild(script);
