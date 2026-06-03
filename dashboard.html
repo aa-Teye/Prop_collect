@@ -282,39 +282,42 @@
 
   <!-- TAB 1: OVERVIEW -->
   <div id="tab-overview" class="tab-content active">
-    <div style="display:flex;gap:8px; margin-bottom:24px;flex-wrap:wrap;">
-      <button onclick="setOverviewPeriod('today')"
-        id="periodToday"
-        style="padding:8px 16px;border-radius:20px;
-        background:#006B3F;color:white;border:none;
-        font-weight:700;cursor:pointer;font-size:13px;">
-        Today
-      </button>
-      <button onclick="setOverviewPeriod('yesterday')"
-        id="periodYesterday"
-        style="padding:8px 16px;border-radius:20px;
-        background:#e2e8f0;color:#0a1628;border:none;
-        font-weight:700;cursor:pointer;font-size:13px;">
-        Yesterday
-      </button>
-      <button onclick="setOverviewPeriod('week')"
-        id="periodWeek"
-        style="padding:8px 16px;border-radius:20px;
-        background:#e2e8f0;color:#0a1628;border:none;
-        font-weight:700;cursor:pointer;font-size:13px;">
-        This Week
-      </button>
-      <button onclick="setOverviewPeriod('all')"
-        id="periodAll"
-        style="padding:8px 16px;border-radius:20px;
-        background:#e2e8f0;color:#0a1628;border:none;
-        font-weight:700;cursor:pointer;font-size:13px;">
-        All Time
-      </button>
-      <input type="date" id="periodCustomDate"
-        onchange="setOverviewPeriod('custom')"
-        style="padding:8px 12px;border-radius:20px;
-        border:2px solid #e2e8f0;font-size:13px;">
+    <div style="display:flex;gap:12px;
+      align-items:center;
+      margin-bottom:20px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;">
+        <label style="font-size:12px;
+          font-weight:700;color:#64748b;
+          display:block;margin-bottom:6px;">
+          📅 Filter by Day
+        </label>
+        <select id="dayFilterSelect"
+          onchange="applyDayFilter()"
+          style="width:100%;padding:10px 14px;
+          border:2px solid #e2e8f0;
+          border-radius:10px;font-size:14px;
+          font-weight:600;color:#0a1628;
+          background:white;cursor:pointer;
+          appearance:none;">
+          <option value="all">
+            📊 All Time
+          </option>
+          <option value="today">
+            📅 Today
+          </option>
+          <option value="yesterday">
+            📅 Yesterday
+          </option>
+          <option value="week">
+            📅 This Week
+          </option>
+        </select>
+      </div>
+      <div id="currentPeriodLabel"
+        style="font-size:13px;
+        color:#64748b;font-style:italic;">
+        Showing: All Time
+      </div>
     </div>
 
     <div id="overviewPeriodLabel"
@@ -489,6 +492,21 @@
   <!-- TAB 5: ANALYTICS -->
   <div id="tab-analytics" class="tab-content">
     <div class="grid-2">
+
+      <!-- 25-Day Trend Chart (full width) -->
+      <div style="background:white;
+        border-radius:16px;padding:20px;
+        margin-bottom:20px;
+        box-shadow:0 2px 8px rgba(0,0,0,0.06);
+        grid-column:1/-1;">
+        <h3 style="font-weight:800;
+          font-size:15px;color:#0a1628;
+          margin:0 0 16px;">
+          📈 25-Day Collection Trend
+        </h3>
+        <canvas id="chart25Days" height="200"></canvas>
+      </div>
+
       <div class="card">
         <h3>Delivery Rate by Supervisor</h3>
         <div class="chart-container"><canvas id="chart-sup-rate"></canvas></div>
@@ -871,15 +889,73 @@
     if (period === 'custom') {
       currentCustomDate = document.getElementById('periodCustomDate').value;
     }
-    var periods = ['Today','Yesterday','Week','All'];
-    periods.forEach(function(p) {
-      var btn = document.getElementById('period' + p);
-      if (btn) {
-        btn.style.background = p.toLowerCase() === period ? '#006B3F' : '#e2e8f0';
-        btn.style.color = p.toLowerCase() === period ? 'white' : '#0a1628';
+    renderOverview();
+  }
+
+  function populateDayFilter() {
+    var select = document.getElementById('dayFilterSelect');
+    if (!select) return;
+
+    // Collect unique dates from allLogs
+    var datesSet = {};
+    allLogs.forEach(function(l) {
+      var date = l.date || l.Date || '';
+      if (date && !datesSet[date]) {
+        datesSet[date] = true;
       }
     });
+
+    var dates = Object.keys(datesSet).sort(function(a, b) {
+      return parseLogDate(a) - parseLogDate(b);
+    });
+
+    // Remove old date options first
+    var oldOptions = select.querySelectorAll('option[data-type="date"]');
+    oldOptions.forEach(function(o) { o.remove(); });
+    var oldSep = select.querySelector('option[data-type="sep"]');
+    if (oldSep) oldSep.remove();
+
+    if (dates.length > 0) {
+      var sep = document.createElement('option');
+      sep.disabled = true;
+      sep.setAttribute('data-type', 'sep');
+      sep.textContent = '── Select Day ──';
+      select.appendChild(sep);
+    }
+
+    dates.forEach(function(date, idx) {
+      var opt = document.createElement('option');
+      opt.value = 'date:' + date;
+      opt.setAttribute('data-type', 'date');
+      opt.textContent = '📅 Day ' + (idx + 1) + ' (' + date + ')';
+      select.appendChild(opt);
+    });
+  }
+
+  function applyDayFilter() {
+    var select = document.getElementById('dayFilterSelect');
+    if (!select) return;
+
+    var value = select.value;
+    var label = document.getElementById('currentPeriodLabel');
+
+    if (value.startsWith('date:')) {
+      var date = value.replace('date:', '');
+      currentPeriod = 'date:' + date;
+      if (label) label.textContent = 'Showing: ' + date;
+    } else {
+      currentPeriod = value;
+      var labelMap = {
+        'all': 'All Time',
+        'today': 'Today',
+        'yesterday': 'Yesterday',
+        'week': 'This Week'
+      };
+      if (label) label.textContent = 'Showing: ' + (labelMap[value] || value);
+    }
+
     renderOverview();
+    renderCharts();
   }
 
   function getLogsForPeriod() {
@@ -887,15 +963,24 @@
     today.setHours(0,0,0,0);
     var yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     var filtered = getFilteredLogs();
-    
+
     return filtered.filter(function(l) {
       if (!l.date) return false;
       var logDate = parseLogDate(l.date);
       if (!logDate) return false;
       logDate.setHours(0,0,0,0);
-      
+
+      // Specific date filter from dropdown
+      if (currentPeriod && currentPeriod.startsWith('date:')) {
+        var targetDate = currentPeriod.replace('date:', '').trim();
+        var targetParsed = parseLogDate(targetDate);
+        if (!targetParsed) return false;
+        targetParsed.setHours(0,0,0,0);
+        return logDate.getTime() === targetParsed.getTime();
+      }
+
       if (currentPeriod === 'today') {
         return logDate.getTime() === today.getTime();
       }
@@ -1047,6 +1132,7 @@
 
         allLogs = Object.values(grouped);
         localStorage.setItem('propcollect_logs', JSON.stringify(allLogs));
+        populateDayFilter();
         renderDashboard();
       }
       
@@ -2023,6 +2109,85 @@
             ticks: {
               callback: function(v) { return v + '%'; }
             }
+          }
+        }
+      }
+    });
+
+    // 6. 25-Day Collection Trend (always uses full allLogs, not filtered)
+    render25DayChart(getFilteredLogs());
+  }
+
+  function render25DayChart(logs) {
+    var canvas = document.getElementById('chart25Days');
+    if (!canvas) return;
+
+    var ctx = canvas.getContext('2d');
+
+    // Build date -> bill count map
+    var datesMap = {};
+    logs.forEach(function(l) {
+      var date = l.date || l.Date || '';
+      if (date) {
+        datesMap[date] = (datesMap[date] || 0) + (l.totalBills || 0);
+      }
+    });
+
+    var sortedDates = Object.keys(datesMap).sort(function(a, b) {
+      var da = parseLogDate(a);
+      var db = parseLogDate(b);
+      return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
+    });
+
+    var labels = sortedDates.map(function(d, i) {
+      return 'Day ' + (i + 1);
+    });
+    var values = sortedDates.map(function(d) {
+      return datesMap[d];
+    });
+
+    if (window.chart25DaysInstance) {
+      window.chart25DaysInstance.destroy();
+    }
+
+    window.chart25DaysInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Bills Collected',
+          data: values,
+          backgroundColor: '#006B3F',
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: { duration: 800, easing: 'easeInOutQuart' },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0a1628',
+            callbacks: {
+              title: function(items) {
+                var idx = items[0].dataIndex;
+                return sortedDates[idx];
+              },
+              label: function(ctx) {
+                return ctx.raw + ' bills';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 10, font: { size: 11 } },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
+          x: {
+            ticks: { font: { size: 10 } },
+            grid: { display: false }
           }
         }
       }
