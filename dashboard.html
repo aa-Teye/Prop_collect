@@ -282,6 +282,39 @@
 
   <!-- TAB 1: OVERVIEW -->
   <div id="tab-overview" class="tab-content active">
+
+    <!-- Dashboard Sub-Tab Navigation -->
+    <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;
+      background:white;border-radius:12px;padding:12px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
+      <button onclick="switchDashTab('overview')"
+        id="tab-dash-overview"
+        class="dash-tab-btn"
+        style="padding:10px 16px;border:none;border-radius:8px;
+        font-weight:700;cursor:pointer;font-size:13px;
+        background:#0a1628;color:white;">
+        📊 Overview
+      </button>
+      <button onclick="switchDashTab('bill-tracker')"
+        id="tab-bill-tracker"
+        class="dash-tab-btn"
+        style="padding:10px 16px;border:none;border-radius:8px;
+        font-weight:700;cursor:pointer;font-size:13px;
+        background:#e2e8f0;color:#0a1628;">
+        📊 Bill Tracker
+      </button>
+      <button onclick="switchDashTab('payment-report')"
+        id="tab-payment-report"
+        class="dash-tab-btn"
+        style="padding:10px 16px;border:none;border-radius:8px;
+        font-weight:700;cursor:pointer;font-size:13px;
+        background:#e2e8f0;color:#0a1628;">
+        💰 Payment Report
+      </button>
+    </div>
+
+    <!-- Panel: Overview (existing content wrapped) -->
+    <div id="panel-overview" style="display:block;">
     <div style="display:flex;gap:12px;
       align-items:center;
       margin-bottom:20px;flex-wrap:wrap;">
@@ -399,7 +432,107 @@
         </div>
       </div>
     </div>
-  </div>
+    </div><!-- /panel-overview -->
+
+    <!-- Panel: Bill Tracker -->
+    <div id="panel-bill-tracker" style="display:none;">
+
+      <div style="display:flex;justify-content:space-between;
+        align-items:center;margin-bottom:20px;">
+        <h2 style="font-weight:900;font-size:18px;color:#0a1628;margin:0;">📊 Bill Tracker</h2>
+        <button onclick="refreshDashBillTracker()"
+          style="padding:8px 14px;background:#006B3F;color:white;
+          border:none;border-radius:8px;font-weight:700;
+          cursor:pointer;font-size:12px;">🔄 Refresh</button>
+      </div>
+
+      <!-- Overall Stats -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;
+        gap:12px;margin-bottom:20px;">
+        <div style="background:#dcfce7;border-radius:12px;padding:16px;text-align:center;">
+          <div style="font-size:24px;font-weight:900;color:#15803d;"
+            id="dashTotalDelivered">0</div>
+          <div style="font-size:12px;color:#166534;font-weight:700;">✅ Delivered</div>
+        </div>
+        <div style="background:#eff6ff;border-radius:12px;padding:16px;text-align:center;">
+          <div style="font-size:24px;font-weight:900;color:#1d4ed8;"
+            id="dashTotalPending">0</div>
+          <div style="font-size:12px;color:#1e40af;font-weight:700;">🔵 Pending</div>
+        </div>
+        <div style="background:#fef9c3;border-radius:12px;padding:16px;text-align:center;">
+          <div style="font-size:24px;font-weight:900;color:#854d0e;"
+            id="dashTotalCollectors">0</div>
+          <div style="font-size:12px;color:#854d0e;font-weight:700;">👤 Collectors</div>
+        </div>
+      </div>
+
+      <!-- Collector Cards -->
+      <div id="dashCollectorList" style="display:flex;flex-direction:column;gap:12px;"></div>
+    </div>
+
+    <!-- Collector Bills Modal -->
+    <div id="dashCollectorModal"
+      style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+      background:rgba(0,0,0,0.5);z-index:9999;overflow-y:auto;">
+      <div style="background:white;margin:20px auto;max-width:800px;
+        border-radius:16px;padding:20px;">
+        <div style="display:flex;justify-content:space-between;
+          align-items:center;margin-bottom:16px;">
+          <div>
+            <h3 id="dashModalTitle"
+              style="font-weight:900;font-size:16px;color:#0a1628;margin:0;"></h3>
+            <div id="dashModalSubtitle" style="font-size:12px;color:#64748b;"></div>
+          </div>
+          <button onclick="closeDashModal()"
+            style="background:#fee2e2;color:#b91c1c;border:none;
+            border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;">
+            ✕ Close
+          </button>
+        </div>
+        <div id="dashModalList"
+          style="display:flex;flex-direction:column;gap:8px;
+          max-height:500px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Panel: Payment Report -->
+    <div id="panel-payment-report" style="display:none;">
+
+      <div style="display:flex;justify-content:space-between;
+        align-items:center;margin-bottom:20px;">
+        <h2 style="font-weight:900;font-size:18px;color:#0a1628;margin:0;">💰 Payment Report</h2>
+        <button onclick="exportPaymentReport()"
+          style="padding:8px 14px;background:#006B3F;color:white;
+          border:none;border-radius:8px;font-weight:700;
+          cursor:pointer;font-size:12px;">⬇ Export</button>
+      </div>
+
+      <!-- Summary Stats -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;
+        gap:12px;margin-bottom:20px;">
+        <div style="background:#dcfce7;border-radius:12px;padding:16px;text-align:center;">
+          <div style="font-size:24px;font-weight:900;color:#15803d;"
+            id="payTotalCollectors">0</div>
+          <div style="font-size:12px;color:#166534;font-weight:700;">👤 Collectors</div>
+        </div>
+        <div style="background:#eff6ff;border-radius:12px;padding:16px;text-align:center;">
+          <div style="font-size:24px;font-weight:900;color:#1d4ed8;"
+            id="payTotalDays">0</div>
+          <div style="font-size:12px;color:#1e40af;font-weight:700;">📅 Total Days</div>
+        </div>
+        <div style="background:#fef9c3;border-radius:12px;padding:16px;text-align:center;">
+          <div style="font-size:24px;font-weight:900;color:#854d0e;"
+            id="payTotalAmount">GHS 0</div>
+          <div style="font-size:12px;color:#854d0e;font-weight:700;">💰 Total Payable</div>
+        </div>
+      </div>
+
+      <!-- Collector Payment Cards -->
+      <div id="paymentCollectorList"
+        style="display:flex;flex-direction:column;gap:12px;"></div>
+    </div>
+
+  </div><!-- /tab-overview -->
 
   <!-- TAB 2: SUPERVISORS -->
   <div id="tab-supervisors" class="tab-content">
@@ -3611,6 +3744,396 @@
     }
     
     doc.save("research_cross_tabulations.pdf");
+  }
+
+  // ==============================================
+  // DASHBOARD SUB-TAB NAVIGATION
+  // ==============================================
+
+  function switchDashTab(tabName) {
+    // Hide all panels
+    var panels = ['panel-overview', 'panel-bill-tracker', 'panel-payment-report'];
+    panels.forEach(function(p) {
+      var el = document.getElementById(p);
+      if (el) el.style.display = 'none';
+    });
+
+    // Reset all tab buttons
+    document.querySelectorAll('.dash-tab-btn').forEach(function(btn) {
+      btn.style.background = '#e2e8f0';
+      btn.style.color = '#0a1628';
+    });
+
+    // Show selected panel & highlight active button
+    var panelEl = document.getElementById('panel-' + tabName);
+    if (panelEl) panelEl.style.display = 'block';
+
+    var btnEl = document.getElementById('tab-' + tabName);
+    if (!btnEl) btnEl = document.getElementById('tab-dash-overview');
+    if (btnEl) {
+      btnEl.style.background = '#0a1628';
+      btnEl.style.color = 'white';
+    }
+
+    // Load data for the selected panel
+    if (tabName === 'bill-tracker') {
+      refreshDashBillTracker();
+    } else if (tabName === 'payment-report') {
+      renderPaymentReport();
+    }
+  }
+
+  // ==============================================
+  // BILL TRACKER FUNCTIONS
+  // ==============================================
+
+  var DAILY_RATE = 100;
+  var DAYS_PER_WEEK = 5;
+  var TOTAL_WEEKS = 5;
+  var TOTAL_DAYS = 25;
+
+  function refreshDashBillTracker() {
+    // allLogs holds submissions (each log = one collector-day with bills array)
+    var submissions = allLogs || [];
+    var allBills = window.ALL_BILLS || [];
+
+    // Build flat submissions list — each submitted bill entry
+    var flatSubmissions = [];
+    submissions.forEach(function(l) {
+      if (l.bills && Array.isArray(l.bills)) {
+        l.bills.forEach(function(b) {
+          flatSubmissions.push({
+            accountNumber: b.accountNumber || '',
+            collector: l.collector || '',
+            date: l.date || '',
+            arm: b.arm || l.arm || ''
+          });
+        });
+      }
+    });
+
+    var collectorsMap = {};
+    allBills.forEach(function(b) {
+      var collector = b.collector || '';
+      var arm = b.arm || '';
+      var phone = b.collectorPhone || b.phone || '';
+      if (collector && !collectorsMap[collector]) {
+        collectorsMap[collector] = {
+          name: collector,
+          arm: arm,
+          phone: phone,
+          totalBills: 0,
+          deliveredBills: [],
+          pendingBills: []
+        };
+      }
+      if (collector) {
+        collectorsMap[collector].totalBills++;
+        var accNo = b.accountNumber || '';
+        var isDelivered = flatSubmissions.some(function(s) {
+          return s.accountNumber === accNo;
+        });
+        if (isDelivered) {
+          collectorsMap[collector].deliveredBills.push(b);
+        } else {
+          collectorsMap[collector].pendingBills.push(b);
+        }
+      }
+    });
+
+    var collectors = Object.values(collectorsMap).sort(function(a, b) {
+      return b.deliveredBills.length - a.deliveredBills.length;
+    });
+
+    var tdEl = document.getElementById('dashTotalDelivered');
+    var tpEl = document.getElementById('dashTotalPending');
+    var tcEl = document.getElementById('dashTotalCollectors');
+
+    var totalDelivered = flatSubmissions.length;
+    var totalPending = Math.max(0, allBills.length - totalDelivered);
+
+    if (tdEl) tdEl.textContent = totalDelivered.toLocaleString();
+    if (tpEl) tpEl.textContent = totalPending.toLocaleString();
+    if (tcEl) tcEl.textContent = collectors.length;
+
+    var list = document.getElementById('dashCollectorList');
+    if (!list) return;
+
+    if (collectors.length === 0) {
+      list.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;">No bill data available. Please ensure bills are loaded.</div>';
+      return;
+    }
+
+    list.innerHTML = collectors.map(function(c) {
+      var delivered = c.deliveredBills.length;
+      var pending = c.pendingBills.length;
+      var total = c.totalBills;
+      var pct = total > 0 ? Math.round((delivered / total) * 100) : 0;
+      var progressColor = pct >= 75 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#3b82f6';
+      var waNumber = (c.phone || '').toString().replace(/^0/, '233').replace(/\D/g, '');
+
+      return '<div style="background:white;border-radius:16px;padding:16px;' +
+        'box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">' +
+        '<div>' +
+        '<div style="font-weight:800;font-size:15px;color:#0a1628;">' + c.name + '</div>' +
+        '<div style="font-size:12px;color:#64748b;">ARM: ' + (c.arm || '—') + '</div>' +
+        '</div>' +
+        (waNumber ? '<a href="https://wa.me/' + waNumber + '" target="_blank" ' +
+          'style="padding:6px 12px;background:#25D366;color:white;border-radius:8px;' +
+          'font-size:12px;font-weight:700;text-decoration:none;">💬 WhatsApp</a>' : '') +
+        '</div>' +
+        '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
+        '<div style="flex:1;background:#dcfce7;border-radius:8px;padding:8px;text-align:center;">' +
+        '<div style="font-size:20px;font-weight:900;color:#15803d;">' + delivered + '</div>' +
+        '<div style="font-size:11px;color:#166534;font-weight:700;">✅ Delivered</div></div>' +
+        '<div style="flex:1;background:#eff6ff;border-radius:8px;padding:8px;text-align:center;">' +
+        '<div style="font-size:20px;font-weight:900;color:#1d4ed8;">' + pending + '</div>' +
+        '<div style="font-size:11px;color:#1e40af;font-weight:700;">🔵 Pending</div></div></div>' +
+        '<div style="margin-bottom:10px;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:4px;">' +
+        '<span>Progress</span><span>' + pct + '%</span></div>' +
+        '<div style="background:#e2e8f0;border-radius:20px;height:8px;">' +
+        '<div style="background:' + progressColor + ';height:8px;border-radius:20px;width:' + pct + '%;"></div></div></div>' +
+        '<div style="display:flex;gap:8px;">' +
+        '<button onclick="viewDashCollectorBills(\'' + c.name.replace(/'/g, "\\'") + '\',\'delivered\')" ' +
+        'style="flex:1;padding:8px;background:#006B3F;color:white;border:none;border-radius:8px;' +
+        'font-weight:700;cursor:pointer;font-size:12px;">✅ View Delivered</button>' +
+        '<button onclick="viewDashCollectorBills(\'' + c.name.replace(/'/g, "\\'") + '\',\'pending\')" ' +
+        'style="flex:1;padding:8px;background:#1d4ed8;color:white;border:none;border-radius:8px;' +
+        'font-weight:700;cursor:pointer;font-size:12px;">🔵 View Pending</button>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  function viewDashCollectorBills(collectorName, type) {
+    var allBills = window.ALL_BILLS || [];
+    var submissions = allLogs || [];
+
+    var flatSubmissions = [];
+    submissions.forEach(function(l) {
+      if (l.bills && Array.isArray(l.bills)) {
+        l.bills.forEach(function(b) {
+          flatSubmissions.push({ accountNumber: b.accountNumber || '' });
+        });
+      }
+    });
+
+    var collectorBills = allBills.filter(function(b) {
+      return b.collector === collectorName;
+    });
+
+    var isDelivered = type === 'delivered';
+    var filtered = collectorBills.filter(function(b) {
+      var accNo = b.accountNumber || '';
+      var delivered = flatSubmissions.some(function(s) { return s.accountNumber === accNo; });
+      return isDelivered ? delivered : !delivered;
+    });
+
+    document.getElementById('dashModalTitle').textContent = collectorName;
+    document.getElementById('dashModalSubtitle').textContent =
+      (isDelivered ? '✅ Delivered' : '🔵 Pending') + ' — ' + filtered.length + ' bills';
+
+    document.getElementById('dashModalList').innerHTML = filtered.length === 0 ?
+      '<div style="text-align:center;padding:40px;color:#64748b;">' +
+      (isDelivered ? 'No delivered bills.' : '🎉 All bills delivered!') + '</div>' :
+      filtered.map(function(b) {
+        var accNo = b.accountNumber || '';
+        var name = b.ownerName || b.ratepayerName || '—';
+        var rate = b.rateType || b.useType || '';
+        var bill = b.currentBill || b.billAmount || '';
+        return '<div style="background:#f8fafc;border-radius:8px;padding:12px;' +
+          'border-left:3px solid ' + (isDelivered ? '#22c55e' : '#3b82f6') + ';">' +
+          '<div style="font-weight:700;font-size:13px;">' + accNo + '</div>' +
+          '<div style="font-size:12px;color:#64748b;">' + name + '</div>' +
+          '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">' +
+          (rate ? rate + ' · ' : '') + (bill ? 'GHS ' + bill : '') +
+          '</div></div>';
+      }).join('');
+
+    document.getElementById('dashCollectorModal').style.display = 'block';
+  }
+
+  function closeDashModal() {
+    document.getElementById('dashCollectorModal').style.display = 'none';
+  }
+
+  // ==============================================
+  // PAYMENT REPORT FUNCTIONS
+  // ==============================================
+
+  function renderPaymentReport() {
+    var submissions = allLogs || [];
+    var allBills = window.ALL_BILLS || [];
+
+    var collectorsMap = {};
+    allBills.forEach(function(b) {
+      var collector = b.collector || '';
+      var arm = b.arm || '';
+      var phone = b.collectorPhone || b.phone || '';
+      if (collector && !collectorsMap[collector]) {
+        collectorsMap[collector] = {
+          name: collector,
+          arm: arm,
+          phone: phone,
+          daysWorked: {},
+          weeklyDays: {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        };
+      }
+    });
+
+    // Get all unique project dates sorted
+    var allDates = [];
+    var datesSet = {};
+    submissions.forEach(function(l) {
+      var date = l.date || '';
+      if (date && !datesSet[date]) {
+        datesSet[date] = true;
+        allDates.push(date);
+      }
+    });
+    allDates.sort(function(a, b) {
+      return parseLogDate(a) - parseLogDate(b);
+    });
+
+    // Assign each date to a week (5 days each)
+    var dateToWeek = {};
+    allDates.forEach(function(date, idx) {
+      dateToWeek[date] = Math.floor(idx / 5) + 1;
+    });
+
+    // Count days worked per collector per week
+    submissions.forEach(function(l) {
+      var collector = l.collector || '';
+      var date = l.date || '';
+      if (!collector || !date) return;
+      if (!collectorsMap[collector]) {
+        collectorsMap[collector] = {
+          name: collector,
+          arm: l.arm || '',
+          phone: l.phone || '',
+          daysWorked: {},
+          weeklyDays: {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        };
+      }
+      if (!collectorsMap[collector].daysWorked[date]) {
+        collectorsMap[collector].daysWorked[date] = true;
+        var week = dateToWeek[date] || 1;
+        if (week <= 5) {
+          collectorsMap[collector].weeklyDays[week]++;
+        }
+      }
+    });
+
+    var collectors = Object.values(collectorsMap).sort(function(a, b) {
+      return a.name.localeCompare(b.name);
+    });
+
+    var totalDaysAll = 0;
+    var totalAmountAll = 0;
+    collectors.forEach(function(c) {
+      var total = Object.keys(c.daysWorked).length;
+      totalDaysAll += total;
+      totalAmountAll += total * DAILY_RATE;
+    });
+
+    var tcEl = document.getElementById('payTotalCollectors');
+    var tdEl = document.getElementById('payTotalDays');
+    var taEl = document.getElementById('payTotalAmount');
+    if (tcEl) tcEl.textContent = collectors.length;
+    if (tdEl) tdEl.textContent = totalDaysAll;
+    if (taEl) taEl.textContent = 'GHS ' + totalAmountAll.toLocaleString();
+
+    var list = document.getElementById('paymentCollectorList');
+    if (!list) return;
+
+    if (collectors.length === 0) {
+      list.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;">No payment data available. Please ensure submissions are loaded.</div>';
+      return;
+    }
+
+    list.innerHTML = collectors.map(function(c) {
+      var totalDays = Object.keys(c.daysWorked).length;
+      var totalPay = totalDays * DAILY_RATE;
+      var waNumber = (c.phone || '').toString().replace(/^0/, '233').replace(/\D/g, '');
+
+      var weekRows = '';
+      for (var w = 1; w <= 5; w++) {
+        var days = c.weeklyDays[w] || 0;
+        var pay = days * DAILY_RATE;
+        weekRows += '<div style="display:flex;justify-content:space-between;align-items:center;' +
+          'padding:6px 0;border-bottom:1px solid #f1f5f9;">' +
+          '<span style="font-size:12px;color:#64748b;">Week ' + w + '</span>' +
+          '<span style="font-size:12px;color:#374151;font-weight:600;">' + days + '/' + DAYS_PER_WEEK + ' days</span>' +
+          '<span style="font-size:12px;font-weight:700;color:#006B3F;">GHS ' + pay.toLocaleString() + '</span></div>';
+      }
+
+      return '<div style="background:white;border-radius:16px;padding:16px;' +
+        'box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">' +
+        '<div>' +
+        '<div style="font-weight:800;font-size:15px;color:#0a1628;">' + c.name + '</div>' +
+        '<div style="font-size:12px;color:#64748b;">ARM: ' + (c.arm || '—') + '</div>' +
+        '</div>' +
+        (waNumber ? '<a href="https://wa.me/' + waNumber + '" target="_blank" ' +
+          'style="padding:6px 12px;background:#25D366;color:white;border-radius:8px;' +
+          'font-size:12px;font-weight:700;text-decoration:none;">💬 WhatsApp</a>' : '') +
+        '</div>' +
+        '<div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:12px;">' +
+        weekRows +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;' +
+        'background:#dcfce7;border-radius:8px;padding:12px;">' +
+        '<div>' +
+        '<div style="font-size:12px;color:#166534;">Total Days Worked</div>' +
+        '<div style="font-size:20px;font-weight:900;color:#15803d;">' + totalDays + '/' + TOTAL_DAYS + ' days</div></div>' +
+        '<div style="text-align:right;">' +
+        '<div style="font-size:12px;color:#166534;">Total Amount Due</div>' +
+        '<div style="font-size:20px;font-weight:900;color:#006B3F;">GHS ' + totalPay.toLocaleString() + '</div>' +
+        '</div></div></div>';
+    }).join('');
+
+    window.paymentData = collectors;
+  }
+
+  function exportPaymentReport() {
+    var collectors = window.paymentData || [];
+    if (!collectors.length) {
+      alert('No payment data to export. Please open the Payment Report tab first.');
+      return;
+    }
+
+    var rows = [[
+      'Collector', 'ARM',
+      'Week 1 Days', 'Week 1 Pay',
+      'Week 2 Days', 'Week 2 Pay',
+      'Week 3 Days', 'Week 3 Pay',
+      'Week 4 Days', 'Week 4 Pay',
+      'Week 5 Days', 'Week 5 Pay',
+      'Total Days', 'Total Pay (GHS)'
+    ]];
+
+    collectors.forEach(function(c) {
+      var totalDays = Object.keys(c.daysWorked).length;
+      var row = [c.name, c.arm];
+      for (var w = 1; w <= 5; w++) {
+        var days = c.weeklyDays[w] || 0;
+        row.push(days);
+        row.push(days * DAILY_RATE);
+      }
+      row.push(totalDays);
+      row.push(totalDays * DAILY_RATE);
+      rows.push(row);
+    });
+
+    var csv = rows.map(function(r) { return r.join(','); }).join('\n');
+    var blob = new Blob([csv], {type: 'text/csv'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'payment_report.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // --- MOCK DATA GENERATOR (For demo) ---
