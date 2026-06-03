@@ -353,6 +353,51 @@
       </div>
     </div>
 
+    <!-- Additional Filters: Day Selector + Date Picker -->
+    <div style="display:flex;gap:12px;align-items:flex-end;
+      flex-wrap:wrap;margin-bottom:20px;">
+
+      <!-- Day Selector -->
+      <div style="flex:1;min-width:180px;">
+        <label style="font-size:12px;font-weight:700;color:#64748b;
+          display:block;margin-bottom:6px;">
+          🗓 Jump to Day
+        </label>
+        <select id="daySelector"
+          onchange="setPeriodByDay(this.value)"
+          style="width:100%;padding:10px 14px;
+          border:2px solid #e2e8f0;border-radius:10px;
+          font-size:14px;font-weight:600;color:#0a1628;
+          background:white;cursor:pointer;appearance:none;">
+          <option value="">— Select Day —</option>
+        </select>
+      </div>
+
+      <!-- Date Picker -->
+      <div style="flex:1;min-width:180px;">
+        <label style="font-size:12px;font-weight:700;color:#64748b;
+          display:block;margin-bottom:6px;">
+          📆 Pick a Date
+        </label>
+        <input type="date" id="datePickerFilter"
+          onchange="setPeriodByDate(this.value)"
+          style="width:100%;padding:10px 14px;
+          border:2px solid #e2e8f0;border-radius:10px;
+          font-size:14px;font-weight:600;color:#0a1628;
+          background:white;cursor:pointer;box-sizing:border-box;">
+      </div>
+
+      <!-- Clear extra filters -->
+      <div>
+        <button onclick="clearExtraFilters()"
+          style="padding:10px 16px;border:2px solid #e2e8f0;
+          border-radius:10px;font-size:13px;font-weight:700;
+          background:white;color:#64748b;cursor:pointer;">
+          ✕ Clear
+        </button>
+      </div>
+    </div>
+
     <div id="overviewPeriodLabel"
       style="font-size:13px;color:#64748b;
       margin-bottom:16px;font-weight:600;">
@@ -1065,6 +1110,84 @@
     });
   }
 
+  function populateDaySelector() {
+    var select = document.getElementById('daySelector');
+    if (!select) return;
+
+    // Collect unique dates from allLogs, sorted ascending
+    var datesSet = {};
+    allLogs.forEach(function(l) {
+      var date = l.date || l.Date || '';
+      if (date && !datesSet[date]) datesSet[date] = true;
+    });
+    var dates = Object.keys(datesSet).sort(function(a, b) {
+      return parseLogDate(a) - parseLogDate(b);
+    });
+
+    // Rebuild options (keep placeholder)
+    select.innerHTML = '<option value="">— Select Day —</option>';
+    dates.forEach(function(date, idx) {
+      var opt = document.createElement('option');
+      opt.value = date;
+      opt.textContent = '📅 Day ' + (idx + 1) + ' (' + date + ')';
+      select.appendChild(opt);
+    });
+  }
+
+  function setPeriodByDay(value) {
+    if (!value) return;
+    // Sync currentPeriod and update label
+    currentPeriod = 'date:' + value;
+    var label = document.getElementById('currentPeriodLabel');
+    if (label) label.textContent = 'Showing: ' + value;
+
+    // Keep dayFilterSelect in sync
+    var mainSelect = document.getElementById('dayFilterSelect');
+    if (mainSelect) {
+      var matchOpt = Array.from(mainSelect.options).find(function(o) {
+        return o.value === 'date:' + value;
+      });
+      if (matchOpt) mainSelect.value = matchOpt.value;
+    }
+
+    // Clear date picker so the two controls don't conflict
+    var dp = document.getElementById('datePickerFilter');
+    if (dp) dp.value = '';
+
+    renderOverview();
+    renderCharts();
+  }
+
+  function setPeriodByDate(dateValue) {
+    if (!dateValue) return;
+    // dateValue is yyyy-mm-dd; convert to match log date format
+    currentPeriod = 'date:' + dateValue;
+    var label = document.getElementById('currentPeriodLabel');
+    if (label) label.textContent = 'Showing: ' + dateValue;
+
+    // Clear day selector so the two controls don't conflict
+    var ds = document.getElementById('daySelector');
+    if (ds) ds.value = '';
+
+    renderOverview();
+    renderCharts();
+  }
+
+  function clearExtraFilters() {
+    var ds = document.getElementById('daySelector');
+    var dp = document.getElementById('datePickerFilter');
+    if (ds) ds.value = '';
+    if (dp) dp.value = '';
+    // Reset to All Time
+    currentPeriod = 'all';
+    var label = document.getElementById('currentPeriodLabel');
+    if (label) label.textContent = 'Showing: All Time';
+    var mainSelect = document.getElementById('dayFilterSelect');
+    if (mainSelect) mainSelect.value = 'all';
+    renderOverview();
+    renderCharts();
+  }
+
   function applyDayFilter() {
     var select = document.getElementById('dayFilterSelect');
     if (!select) return;
@@ -1266,6 +1389,7 @@
         allLogs = Object.values(grouped);
         localStorage.setItem('propcollect_logs', JSON.stringify(allLogs));
         populateDayFilter();
+        populateDaySelector();
         renderDashboard();
       }
       
