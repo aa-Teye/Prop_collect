@@ -442,17 +442,17 @@
     </div>
 
     <!-- Supervisor Activity Breakdown Section -->
-    <div class="card" style="margin-bottom: 20px;">
-      <h3 style="margin-top:0; color:var(--navy); border-bottom: 2px solid var(--border); padding-bottom: 10px;">Supervisor Activity Breakdown</h3>
+    <div class="card" style="margin-bottom:20px;background:white;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+      <h3 style="margin-top:0;color:#0a1628;font-weight:800;border-bottom:2px solid #e2e8f0;padding-bottom:10px;">Supervisor Activity Breakdown</h3>
       <div style="overflow-x:auto;">
         <table>
           <thead>
             <tr>
-              <th>Supervisor</th>
-              <th>Bills Submitted</th>
-              <th>Delivered</th>
-              <th>Amount Collected</th>
-              <th>Status</th>
+              <th style="color:#0a1628;font-weight:700;background:#f8fafc;">Supervisor</th>
+              <th style="color:#0a1628;font-weight:700;background:#f8fafc;">Bills Submitted</th>
+              <th style="color:#0a1628;font-weight:700;background:#f8fafc;">Delivered</th>
+              <th style="color:#0a1628;font-weight:700;background:#f8fafc;">Amount Collected</th>
+              <th style="color:#0a1628;font-weight:700;background:#f8fafc;">Status</th>
             </tr>
           </thead>
           <tbody id="overview-supervisor-breakdown">
@@ -1653,10 +1653,10 @@
         '<span class="badge badge-red">⚠ No Activity</span>';
       
       breakdownHtml += `<tr>
-        <td><strong>${sName}</strong></td>
-        <td>${sStat.bills}</td>
-        <td>${sStat.delivered}</td>
-        <td>GHS ${sStat.amount.toFixed(2)}</td>
+        <td style="color:#0a1628;"><strong style="color:#0a1628;font-weight:700;">${sName}</strong></td>
+        <td style="color:#0a1628;font-weight:900;">${sStat.bills}</td>
+        <td style="color:#0a1628;font-weight:900;">${sStat.delivered}</td>
+        <td style="color:#0a1628;font-weight:900;">GHS ${sStat.amount.toFixed(2)}</td>
         <td>${statusText}</td>
       </tr>`;
     }
@@ -3993,7 +3993,7 @@
       var pending = c.pendingBills.length;
       var total = c.totalBills;
       var pct = total > 0 ? Math.round((delivered / total) * 100) : 0;
-      var progressColor = pct >= 75 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#3b82f6';
+      var progressColor = pct >= 75 ? '#006B3F' : pct >= 50 ? '#f59e0b' : '#3b82f6';
       var waNumber = (c.phone || '').toString().replace(/^0/, '233').replace(/\D/g, '');
 
       return '<div style="background:white;border-radius:16px;padding:16px;' +
@@ -4001,24 +4001,24 @@
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">' +
         '<div>' +
         '<div style="font-weight:800;font-size:15px;color:#0a1628;">' + c.name + '</div>' +
-        '<div style="font-size:12px;color:#64748b;">ARM: ' + (c.arm || '—') + '</div>' +
+        '<div style="font-size:12px;color:#64748b;font-weight:600;">ARM: ' + (c.arm || '—') + '</div>' +
         '</div>' +
         (waNumber ? '<a href="https://wa.me/' + waNumber + '" target="_blank" ' +
           'style="padding:6px 12px;background:#25D366;color:white;border-radius:8px;' +
           'font-size:12px;font-weight:700;text-decoration:none;">💬 WhatsApp</a>' : '') +
         '</div>' +
         '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
-        '<div style="flex:1;background:#dcfce7;border-radius:8px;padding:8px;text-align:center;">' +
+        '<div style="flex:1;background:#dcfce7;border-radius:8px;padding:8px;text-align:center;border:1px solid #bbf7d0;">' +
         '<div style="font-size:20px;font-weight:900;color:#15803d;">' + delivered + '</div>' +
-        '<div style="font-size:11px;color:#166534;font-weight:700;">✅ Delivered</div></div>' +
-        '<div style="flex:1;background:#eff6ff;border-radius:8px;padding:8px;text-align:center;">' +
+        '<div style="font-size:11px;color:#15803d;font-weight:700;">✅ Delivered</div></div>' +
+        '<div style="flex:1;background:#eff6ff;border-radius:8px;padding:8px;text-align:center;border:1px solid #bfdbfe;">' +
         '<div style="font-size:20px;font-weight:900;color:#1d4ed8;">' + pending + '</div>' +
-        '<div style="font-size:11px;color:#1e40af;font-weight:700;">🔵 Pending</div></div></div>' +
+        '<div style="font-size:11px;color:#1d4ed8;font-weight:700;">🔵 Pending</div></div></div>' +
         '<div style="margin-bottom:10px;">' +
-        '<div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:4px;">' +
-        '<span>Progress</span><span>' + pct + '%</span></div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;font-weight:600;margin-bottom:4px;">' +
+        '<span style="color:#64748b;">Progress</span><span style="color:#0a1628;font-weight:700;">' + pct + '%</span></div>' +
         '<div style="background:#e2e8f0;border-radius:20px;height:8px;">' +
-        '<div style="background:' + progressColor + ';height:8px;border-radius:20px;width:' + pct + '%;"></div></div></div>' +
+        '<div style="background:#006B3F;height:8px;border-radius:20px;width:' + pct + '%;"></div></div></div>' +
         '<div style="display:flex;gap:8px;">' +
         '<button onclick="viewDashCollectorBills(\'' + c.name.replace(/'/g, "\\'") + '\',\'delivered\')" ' +
         'style="flex:1;padding:8px;background:#006B3F;color:white;border:none;border-radius:8px;' +
@@ -4186,9 +4186,9 @@
         var days = c.weeklyDays[w] || 0;
         var pay = days * DAILY_RATE;
         weekRows += '<div style="display:flex;justify-content:space-between;align-items:center;' +
-          'padding:6px 0;border-bottom:1px solid #f1f5f9;">' +
-          '<span style="font-size:12px;color:#64748b;">Week ' + w + '</span>' +
-          '<span style="font-size:12px;color:#374151;font-weight:600;">' + days + '/' + DAYS_PER_WEEK + ' days</span>' +
+          'padding:6px 0;border-bottom:1px solid #e2e8f0;">' +
+          '<span style="font-size:12px;color:#64748b;font-weight:600;">Week ' + w + '</span>' +
+          '<span style="font-size:12px;color:#0a1628;font-weight:700;">' + days + '/' + DAYS_PER_WEEK + ' days</span>' +
           '<span style="font-size:12px;font-weight:700;color:#006B3F;">GHS ' + pay.toLocaleString() + '</span></div>';
       }
 
@@ -4197,22 +4197,22 @@
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">' +
         '<div>' +
         '<div style="font-weight:800;font-size:15px;color:#0a1628;">' + c.name + '</div>' +
-        '<div style="font-size:12px;color:#64748b;">ARM: ' + (c.arm || '—') + '</div>' +
+        '<div style="font-size:12px;color:#64748b;font-weight:600;">ARM: ' + (c.arm || '—') + '</div>' +
         '</div>' +
         (waNumber ? '<a href="https://wa.me/' + waNumber + '" target="_blank" ' +
           'style="padding:6px 12px;background:#25D366;color:white;border-radius:8px;' +
           'font-size:12px;font-weight:700;text-decoration:none;">💬 WhatsApp</a>' : '') +
         '</div>' +
-        '<div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:12px;">' +
+        '<div style="background:#f8fafc;border-radius:8px;padding:12px;margin-bottom:12px;border:1px solid #e2e8f0;">' +
         weekRows +
         '</div>' +
         '<div style="display:flex;justify-content:space-between;align-items:center;' +
-        'background:#dcfce7;border-radius:8px;padding:12px;">' +
+        'background:#dcfce7;border-radius:8px;padding:12px;border:1px solid #bbf7d0;">' +
         '<div>' +
-        '<div style="font-size:12px;color:#166534;">Total Days Worked</div>' +
+        '<div style="font-size:12px;color:#15803d;font-weight:600;">Total Days Worked</div>' +
         '<div style="font-size:20px;font-weight:900;color:#15803d;">' + totalDays + '/' + TOTAL_DAYS + ' days</div></div>' +
         '<div style="text-align:right;">' +
-        '<div style="font-size:12px;color:#166534;">Total Amount Due</div>' +
+        '<div style="font-size:12px;color:#15803d;font-weight:600;">Total Amount Due</div>' +
         '<div style="font-size:20px;font-weight:900;color:#006B3F;">GHS ' + totalPay.toLocaleString() + '</div>' +
         '</div></div></div>';
     }).join('');
