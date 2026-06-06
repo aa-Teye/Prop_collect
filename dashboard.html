@@ -273,10 +273,21 @@
       <h2 id="tab-title" style="display:inline-block; margin:0; margin-right:15px; padding-right:15px; border-right:2px solid var(--border);">Overview</h2>
       <span id="user-header-title" style="color:var(--navy); font-weight:600;"></span>
     </div>
-    <div>
-      <span style="margin-right:15px; font-size:14px; color:#666;" id="last-updated">Updating...</span>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <div style="display:flex; flex-direction:column; gap:2px;">
+        <label style="font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.5px;">🌍 District</label>
+        <select id="districtFilter" onchange="onDistrictFilterChange()"
+          style="padding:7px 12px; border:2px solid #e2e8f0; border-radius:8px;
+          font-size:13px; font-weight:600; color:#0a1628; background:white;
+          cursor:pointer; min-width:160px;">
+          <option value="all">All Districts</option>
+          <option value="Ablekuma North">Ablekuma North</option>
+          <option value="Lower Manya Krobo">Lower Manya Krobo</option>
+        </select>
+      </div>
+      <span style="font-size:14px; color:#666;" id="last-updated">Updating...</span>
       <button class="btn btn-green" style="margin:0; padding:8px 15px;" onclick="forceRefresh()">↻ Refresh</button>
-      <button class="btn" style="margin:0 0 0 10px; padding:8px 15px; background:var(--red);" onclick="logout()">Logout</button>
+      <button class="btn" style="margin:0; padding:8px 15px; background:var(--red);" onclick="logout()">Logout</button>
     </div>
   </div>
 
@@ -814,22 +825,29 @@
 
 <script>
   // --- GLOBALS & MOCKS ---
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwRjZS5WZqw0XCu6w6Vd-VrMhQP8kkkMpRb3qVoaHqdWo5cQzRtwbEXDCluj7pzoOMf/exec';
+  const API_URL_ABLEKUMA = 'https://script.google.com/macros/s/AKfycbwRjZS5WZqw0XCu6w6Vd-VrMhQP8kkkMpRb3qVoaHqdWo5cQzRtwbEXDCluj7pzoOMf/exec';
+  const API_URL_LMK = 'https://script.google.com/macros/s/AKfycbzHbQyBG3CFj3WmPDTRK8U6kapu0SsR77c-6dlxfbYl_t4G4LyM8vHAVWON6UuXPE05/exec';
   let allLogs = [];
+  let masterLogs = [];
   let charts = {};
 
   function keepWarm() {
-    window.onWarmDone = function() {
-      window.onWarmDone = null;
-    };
+    window.onWarmDone = function() { window.onWarmDone = null; };
     var old = document.getElementById('warmScript');
     if (old) old.parentNode.removeChild(old);
     var script = document.createElement('script');
     script.id = 'warmScript';
-    script.src = SCRIPT_URL + 
-      '?action=ping&callback=onWarmDone';
+    script.src = API_URL_ABLEKUMA + '?action=ping&callback=onWarmDone';
     script.onerror = function() {};
     document.head.appendChild(script);
+    window.onWarmDoneLMK = function() { window.onWarmDoneLMK = null; };
+    var oldLMK = document.getElementById('warmScriptLMK');
+    if (oldLMK) oldLMK.parentNode.removeChild(oldLMK);
+    var scriptLMK = document.createElement('script');
+    scriptLMK.id = 'warmScriptLMK';
+    scriptLMK.src = API_URL_LMK + '?action=ping&callback=onWarmDoneLMK';
+    scriptLMK.onerror = function() {};
+    document.head.appendChild(scriptLMK);
   }
 
   keepWarm();
@@ -950,12 +968,11 @@
       if (document.body.contains(script)) document.body.removeChild(script);
       delete window[cbName];
     };
-    // For demo purposes if SCRIPT_URL is placeholder, fallback to empty data
-    if (SCRIPT_URL.includes('YOUR_SCRIPT_URL_HERE')) {
-      setTimeout(() => window[cbName]({logs: generateMockData()}), 500);
+    if (API_URL_ABLEKUMA.includes('YOUR_SCRIPT_URL_HERE')) {
+      setTimeout(() => window[cbName]({logs: []}), 500);
       return;
     }
-    script.src = SCRIPT_URL + '?action=' + action + '&callback=' + cbName;
+    script.src = API_URL_ABLEKUMA + '?action=' + action + '&callback=' + cbName;
     script.onerror = function() {
       if (!called) window[cbName]({status:'error'});
     };
@@ -1296,123 +1313,161 @@
            d1.getDate() === d2.getDate();
   }
 
+  // Wraps a JSONP call in a Promise that always resolves (never rejects)
+  function fetchJsonpPromise(url, action) {
+    return new Promise(function(resolve) {
+      var cbName = '_cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+      var called = false;
+      var script = document.createElement('script');
+      window[cbName] = function(data) {
+        if (called) return;
+        called = true;
+        if (document.head.contains(script)) document.head.removeChild(script);
+        delete window[cbName];
+        resolve(data);
+      };
+      script.src = url + '?action=' + action + '&callback=' + cbName;
+      script.onerror = function() {
+        if (!called) { called = true; delete window[cbName]; resolve({ status: 'error', logs: [] }); }
+      };
+      document.head.appendChild(script);
+      setTimeout(function() {
+        if (!called) { called = true; delete window[cbName]; resolve({ status: 'timeout', logs: [] }); }
+      }, 12000);
+    });
+  }
+
+  // Normalizes a raw API response and groups flat log records into daily summaries
+  function normalizeAndGroup(data, districtName) {
+    if (!data || !data.logs || !Array.isArray(data.logs)) return {};
+    var normalized = data.logs.map(function(item) {
+      return {
+        date: item.date,
+        day: item.day,
+        time: item.time,
+        supervisor: item.supervisor,
+        collector: item.collector,
+        unit: item.unit,
+        phone: item.phone,
+        accountNumber: item.accountNumber || item.billNumber,
+        useType: item.useType,
+        billAmount: parseFloat(item.billAmount || item.amount || 0),
+        delivered: item.delivered || item.status,
+        ratepayerName: item.ratepayerName,
+        ratepayerPhone: item.ratepayerPhone,
+        amountPaid: parseFloat(item.amountPaid || item.collected || 0),
+        modeOfPayment: item.modeOfPayment,
+        receiptRef: item.receiptRef,
+        failureReason: item.failureReason,
+        otherReason: item.otherReason,
+        attemptNumber: item.attemptNumber ? parseInt(item.attemptNumber) : 1,
+        arm: item.arm || '',
+        district: item.district || districtName
+      };
+    });
+
+    var grouped = {};
+    normalized.forEach(function(item) {
+      var dateKey = item.date;
+      if (dateKey && dateKey.includes('T')) dateKey = dateKey.split('T')[0];
+      var key = dateKey + '_' + item.collector;
+      if (!grouped[key]) {
+        grouped[key] = {
+          date: dateKey,
+          dayOfWeek: item.day || 'Unknown',
+          supervisor: item.supervisor,
+          collector: item.collector,
+          collectorUnit: item.unit || 0,
+          submissionTime: item.date,
+          district: item.district || districtName,
+          totalBills: 0,
+          totalDelivered: 0,
+          totalFailed: 0,
+          totalAmountCollected: 0,
+          bills: []
+        };
+      }
+      var bill = {
+        accountNumber: item.accountNumber,
+        useType: item.useType,
+        billAmount: item.billAmount,
+        delivered: item.delivered,
+        ratepayerName: item.ratepayerName,
+        ratepayerPhone: item.ratepayerPhone,
+        amountPaid: item.amountPaid,
+        modeOfPayment: item.modeOfPayment,
+        receiptRef: item.receiptRef,
+        failureReason: item.failureReason || item.otherReason,
+        attemptNumber: item.attemptNumber,
+        arm: item.arm
+      };
+      grouped[key].bills.push(bill);
+      grouped[key].totalBills += 1;
+      if (bill.delivered === 'yes') {
+        grouped[key].totalDelivered += 1;
+        grouped[key].totalAmountCollected += bill.amountPaid;
+      } else {
+        grouped[key].totalFailed += 1;
+      }
+    });
+    return grouped;
+  }
+
+  // Filters masterLogs by district dropdown and stores result in allLogs
+  function applyDistrictFilter() {
+    var select = document.getElementById('districtFilter');
+    var district = select ? select.value : 'all';
+    allLogs = (district === 'all' || !district)
+      ? masterLogs.slice()
+      : masterLogs.filter(function(l) { return l.district === district; });
+  }
+
+  // Called when district dropdown changes — re-filters and re-renders everything
+  function onDistrictFilterChange() {
+    applyDistrictFilter();
+    populateDayFilter();
+    populateDaySelector();
+    renderAll();
+    if (document.getElementById('tab-analytics') &&
+        document.getElementById('tab-analytics').classList.contains('active')) {
+      renderCharts();
+    }
+  }
+
   function loadDailyLogs() {
-    const cached = localStorage.getItem('propcollect_logs') || localStorage.getItem('propcollect_data');
+    var cached = localStorage.getItem('propcollect_logs') || localStorage.getItem('propcollect_data');
     if (cached) {
       try {
-        allLogs = JSON.parse(cached);
+        masterLogs = JSON.parse(cached);
+        applyDistrictFilter();
         renderAll();
       } catch(e) {}
     }
-    
+
     var loadingText = document.getElementById('last-updated');
     if (loadingText) loadingText.innerText = 'Fetching...';
 
-    window.onLogsLoaded = function(data) {
-      if (data && data.logs) {
-        // Normalize fields from backend (FIX 2)
-        var normalized = data.logs.map(function(item) {
-          return {
-            date: item.date,
-            day: item.day,
-            time: item.time,
-            supervisor: item.supervisor,
-            collector: item.collector,
-            unit: item.unit,
-            phone: item.phone,
-            accountNumber: item.accountNumber || item.billNumber,
-            useType: item.useType,
-            billAmount: parseFloat(item.billAmount || item.amount || 0),
-            delivered: item.delivered || item.status,
-            ratepayerName: item.ratepayerName,
-            ratepayerPhone: item.ratepayerPhone,
-            amountPaid: parseFloat(item.amountPaid || item.collected || 0),
-            modeOfPayment: item.modeOfPayment,
-            receiptRef: item.receiptRef,
-            failureReason: item.failureReason,
-            otherReason: item.otherReason,
-            attemptNumber: item.attemptNumber ? parseInt(item.attemptNumber) : 1,
-            arm: item.arm || ''
-          };
-        });
+    Promise.all([
+      fetchJsonpPromise(API_URL_ABLEKUMA, 'getDailyLogs'),
+      fetchJsonpPromise(API_URL_LMK, 'getDailyLogs')
+    ]).then(function(results) {
+      var ablekumaGrouped = normalizeAndGroup(results[0], 'Ablekuma North');
+      var lmkGrouped     = normalizeAndGroup(results[1], 'Lower Manya Krobo');
 
-        // Group flat logs into daily log summaries expected by dashboard
-        var grouped = {};
-        normalized.forEach(function(item) {
-          var dateKey = item.date;
-          if (dateKey && dateKey.includes('T')) {
-            dateKey = dateKey.split('T')[0];
-          }
-          
-          var key = dateKey + '_' + item.collector;
-          if (!grouped[key]) {
-            grouped[key] = {
-              date: dateKey,
-              dayOfWeek: item.day || "Unknown",
-              supervisor: item.supervisor,
-              collector: item.collector,
-              collectorUnit: item.unit || 0,
-              submissionTime: item.date,
-              totalBills: 0,
-              totalDelivered: 0,
-              totalFailed: 0,
-              totalAmountCollected: 0,
-              bills: []
-            };
-          }
-          
-          var bill = {
-            accountNumber: item.accountNumber,
-            useType: item.useType,
-            billAmount: item.billAmount,
-            delivered: item.delivered,
-            ratepayerName: item.ratepayerName,
-            ratepayerPhone: item.ratepayerPhone,
-            amountPaid: item.amountPaid,
-            modeOfPayment: item.modeOfPayment,
-            receiptRef: item.receiptRef,
-            failureReason: item.failureReason || item.otherReason,
-            attemptNumber: item.attemptNumber,
-            arm: item.arm
-          };
-          
-          grouped[key].bills.push(bill);
-          grouped[key].totalBills += 1;
-          if (bill.delivered === 'yes') {
-            grouped[key].totalDelivered += 1;
-            grouped[key].totalAmountCollected += bill.amountPaid;
-          } else {
-            grouped[key].totalFailed += 1;
-          }
-        });
+      masterLogs = Object.values(ablekumaGrouped).concat(Object.values(lmkGrouped));
+      localStorage.setItem('propcollect_logs', JSON.stringify(masterLogs));
 
-        allLogs = Object.values(grouped);
-        localStorage.setItem('propcollect_logs', JSON.stringify(allLogs));
-        populateDayFilter();
-        populateDaySelector();
-        renderDashboard();
-      }
-      
+      applyDistrictFilter();
+      populateDayFilter();
+      populateDaySelector();
+      renderDashboard();
+
       if (loadingText) loadingText.innerText = 'Last updated: ' + new Date().toLocaleTimeString();
       var cacheSizeEl = document.getElementById('cache-size');
       if (cacheSizeEl) {
-        cacheSizeEl.innerText = (localStorage.getItem('propcollect_logs') || '').length / 1024 | 0 + ' KB';
+        cacheSizeEl.innerText = ((localStorage.getItem('propcollect_logs') || '').length / 1024 | 0) + ' KB';
       }
-    };
-
-    var old = document.getElementById('logsScript');
-    if (old && old.parentNode) 
-      old.parentNode.removeChild(old);
-
-    var script = document.createElement('script');
-    script.id = 'logsScript';
-    script.src = SCRIPT_URL +
-      '?action=getDailyLogs&callback=onLogsLoaded';
-    script.onerror = function() {
-      console.error('Failed to load logs');
-      if (loadingText) loadingText.innerText = 'Failed to load logs';
-    };
-    document.head.appendChild(script);
+    });
   }
   
   function forceRefresh() {
