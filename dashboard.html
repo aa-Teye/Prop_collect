@@ -1324,52 +1324,103 @@
         called = true;
         if (document.head.contains(script)) document.head.removeChild(script);
         delete window[cbName];
+        // Log raw API response so we can see the exact shape and key names
+        var label = url.includes('LMK') || url === API_URL_LMK ? '[LMK API]' : '[Ablekuma API]';
+        console.log(label + ' raw response:', JSON.stringify(data).slice(0, 500));
+        if (data && data.logs && data.logs.length > 0) {
+          console.log(label + ' first record keys:', Object.keys(data.logs[0]));
+          console.log(label + ' first record sample:', JSON.stringify(data.logs[0]));
+        } else {
+          console.warn(label + ' no .logs array found. Top-level keys:', data ? Object.keys(data) : 'null response');
+        }
         resolve(data);
       };
       script.src = url + '?action=' + action + '&callback=' + cbName;
       script.onerror = function() {
-        if (!called) { called = true; delete window[cbName]; resolve({ status: 'error', logs: [] }); }
+        if (!called) {
+          console.error('[API] Script load error for:', url);
+          called = true; delete window[cbName]; resolve({ status: 'error', logs: [] });
+        }
       };
       document.head.appendChild(script);
       setTimeout(function() {
-        if (!called) { called = true; delete window[cbName]; resolve({ status: 'timeout', logs: [] }); }
+        if (!called) {
+          console.error('[API] Timeout (12s) for:', url);
+          called = true; delete window[cbName]; resolve({ status: 'timeout', logs: [] });
+        }
       }, 12000);
     });
   }
 
+  // Returns the value from obj for the first matching key (case-insensitive, multiple aliases)
+  function pickField(obj, aliases) {
+    for (var i = 0; i < aliases.length; i++) {
+      var a = aliases[i];
+      if (obj[a] !== undefined && obj[a] !== null && obj[a] !== '') return obj[a];
+    }
+    // Case-insensitive fallback scan
+    var objKeys = Object.keys(obj);
+    for (var j = 0; j < aliases.length; j++) {
+      var al = aliases[j].toLowerCase();
+      for (var k = 0; k < objKeys.length; k++) {
+        if (objKeys[k].toLowerCase() === al) {
+          var v = obj[objKeys[k]];
+          if (v !== undefined && v !== null && v !== '') return v;
+        }
+      }
+    }
+    return undefined;
+  }
+
   // Normalizes a raw API response and groups flat log records into daily summaries
   function normalizeAndGroup(data, districtName) {
-    if (!data || !data.logs || !Array.isArray(data.logs)) return {};
-    var normalized = data.logs.map(function(item) {
+    // Accept any of the common top-level array keys the API might return
+    var logsArray = null;
+    if (data) {
+      logsArray = data.logs || data.data || data.records || data.rows || data.results || null;
+      if (!Array.isArray(logsArray) && Array.isArray(data)) logsArray = data;
+    }
+    if (!logsArray || !Array.isArray(logsArray) || logsArray.length === 0) {
+      console.warn('[normalizeAndGroup] No usable array for district:', districtName,
+        '| data keys:', data ? Object.keys(data) : 'null');
+      return {};
+    }
+
+    console.log('[normalizeAndGroup]', districtName, '— records received:', logsArray.length);
+
+    var normalized = logsArray.map(function(item) {
+      var deliveredRaw = pickField(item, ['delivered','Delivered','status','Status','deliveryStatus','DeliveryStatus']) || '';
+      var deliveredVal = deliveredRaw.toString().toLowerCase().trim();
+
       return {
-        date: item.date,
-        day: item.day,
-        time: item.time,
-        supervisor: item.supervisor,
-        collector: item.collector,
-        unit: item.unit,
-        phone: item.phone,
-        accountNumber: item.accountNumber || item.billNumber,
-        useType: item.useType,
-        billAmount: parseFloat(item.billAmount || item.amount || 0),
-        delivered: item.delivered || item.status,
-        ratepayerName: item.ratepayerName,
-        ratepayerPhone: item.ratepayerPhone,
-        amountPaid: parseFloat(item.amountPaid || item.collected || 0),
-        modeOfPayment: item.modeOfPayment,
-        receiptRef: item.receiptRef,
-        failureReason: item.failureReason,
-        otherReason: item.otherReason,
-        attemptNumber: item.attemptNumber ? parseInt(item.attemptNumber) : 1,
-        arm: item.arm || '',
-        district: item.district || districtName
+        date:          pickField(item, ['date','Date','submissionDate','SubmissionDate','timestamp','Timestamp']),
+        day:           pickField(item, ['day','Day','dayOfWeek','DayOfWeek']),
+        time:          pickField(item, ['time','Time']),
+        supervisor:    pickField(item, ['supervisor','Supervisor']),
+        collector:     pickField(item, ['collector','Collector','collectorName','CollectorName']),
+        unit:          pickField(item, ['unit','Unit','collectorUnit','CollectorUnit']),
+        phone:         pickField(item, ['phone','Phone','collectorPhone','CollectorPhone']),
+        accountNumber: pickField(item, ['accountNumber','AccountNumber','billNumber','BillNumber','accNo','AccNo']),
+        useType:       pickField(item, ['useType','UseType','usetype','propertyType','PropertyType']),
+        billAmount:    parseFloat(pickField(item, ['billAmount','BillAmount','billAmt','BillAmt','amount','Amount']) || 0),
+        delivered:     deliveredVal,
+        ratepayerName: pickField(item, ['ratepayerName','RatepayerName','ratepayer','Ratepayer','ownerName','OwnerName']),
+        ratepayerPhone:pickField(item, ['ratepayerPhone','RatepayerPhone']),
+        amountPaid:    parseFloat(pickField(item, ['amountPaid','AmountPaid','amtPaid','AmtPaid','collected','Collected','paidAmount','PaidAmount']) || 0),
+        modeOfPayment: pickField(item, ['modeOfPayment','ModeOfPayment','paymentMode','PaymentMode','mode','Mode']),
+        receiptRef:    pickField(item, ['receiptRef','ReceiptRef','receipt','Receipt']),
+        failureReason: pickField(item, ['failureReason','FailureReason','reason','Reason','failReason']),
+        otherReason:   pickField(item, ['otherReason','OtherReason']),
+        attemptNumber: parseInt(pickField(item, ['attemptNumber','AttemptNumber','attempt','Attempt']) || 1),
+        arm:           pickField(item, ['arm','Arm','armGroup','ArmGroup']) || '',
+        district:      pickField(item, ['district','District']) || districtName
       };
     });
 
     var grouped = {};
     normalized.forEach(function(item) {
       var dateKey = item.date;
-      if (dateKey && dateKey.includes('T')) dateKey = dateKey.split('T')[0];
+      if (dateKey && typeof dateKey === 'string' && dateKey.includes('T')) dateKey = dateKey.split('T')[0];
       var key = dateKey + '_' + item.collector;
       if (!grouped[key]) {
         grouped[key] = {
@@ -1403,13 +1454,16 @@
       };
       grouped[key].bills.push(bill);
       grouped[key].totalBills += 1;
-      if (bill.delivered === 'yes') {
+      // Accept 'yes', 'Yes', 'YES', 'delivered', 'true' as a successful delivery
+      if (bill.delivered === 'yes' || bill.delivered === 'delivered' || bill.delivered === 'true') {
         grouped[key].totalDelivered += 1;
         grouped[key].totalAmountCollected += bill.amountPaid;
       } else {
         grouped[key].totalFailed += 1;
       }
     });
+
+    console.log('[normalizeAndGroup]', districtName, '— grouped sessions:', Object.keys(grouped).length);
     return grouped;
   }
 
@@ -1455,6 +1509,9 @@
       var lmkGrouped     = normalizeAndGroup(results[1], 'Lower Manya Krobo');
 
       masterLogs = Object.values(ablekumaGrouped).concat(Object.values(lmkGrouped));
+      console.log('[loadDailyLogs] masterLogs total sessions:', masterLogs.length,
+        '| Ablekuma:', Object.keys(ablekumaGrouped).length,
+        '| LMK:', Object.keys(lmkGrouped).length);
       localStorage.setItem('propcollect_logs', JSON.stringify(masterLogs));
 
       applyDistrictFilter();
