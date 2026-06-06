@@ -628,9 +628,6 @@
         <input type="date" id="filt-date" onchange="renderBillsTable()">
         <select id="filt-sup" onchange="renderBillsTable()">
           <option value="">All Supervisors</option>
-          <option>Afua Tenkorang</option>
-          <option>Abevi Felix Vifah</option>
-          <option>Linda Arthur</option>
         </select>
         <select id="filt-deliv" onchange="renderBillsTable()">
           <option value="">All Deliveries</option>
@@ -1476,16 +1473,41 @@
       : masterLogs.filter(function(l) { return l.district === district; });
   }
 
+  // Rebuilds the supervisor filter from whatever supervisors exist in allLogs
+  function populateSupervisorFilter() {
+    var select = document.getElementById('filt-sup');
+    if (!select) return;
+    var current = select.value;
+    var sups = {};
+    allLogs.forEach(function(l) { if (l.supervisor) sups[l.supervisor] = true; });
+    var sorted = Object.keys(sups).sort();
+    select.innerHTML = '<option value="">All Supervisors</option>';
+    sorted.forEach(function(name) {
+      var opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      select.appendChild(opt);
+    });
+    // Restore previous selection if it still exists
+    if (current && sups[current]) select.value = current;
+  }
+
   // Called when district dropdown changes — re-filters and re-renders everything
   function onDistrictFilterChange() {
     applyDistrictFilter();
     populateDayFilter();
     populateDaySelector();
+    populateSupervisorFilter();
     renderAll();
     if (document.getElementById('tab-analytics') &&
         document.getElementById('tab-analytics').classList.contains('active')) {
       renderCharts();
     }
+    // Refresh bill tracker / payment report if their panels are visible
+    var btPanel = document.getElementById('panel-bill-tracker');
+    var prPanel = document.getElementById('panel-payment-report');
+    if (btPanel && btPanel.style.display !== 'none') refreshDashBillTracker();
+    if (prPanel && prPanel.style.display !== 'none') renderPaymentReport();
   }
 
   function loadDailyLogs() {
@@ -1517,6 +1539,7 @@
       applyDistrictFilter();
       populateDayFilter();
       populateDaySelector();
+      populateSupervisorFilter();
       renderDashboard();
 
       if (loadingText) loadingText.innerText = 'Last updated: ' + new Date().toLocaleTimeString();
@@ -4029,71 +4052,146 @@
   var TOTAL_DAYS = 25;
 
   function refreshDashBillTracker() {
-    // allLogs holds submissions (each log = one collector-day with bills array)
     var submissions = allLogs || [];
-    var allBills = window.ALL_BILLS || [];
+    var staticBills = window.ALL_BILLS || [];
 
-    // Build flat submissions list — each submitted bill entry
-    var flatSubmissions = [];
-    submissions.forEach(function(l) {
-      if (l.bills && Array.isArray(l.bills)) {
-        l.bills.forEach(function(b) {
-          flatSubmissions.push({
-            accountNumber: b.accountNumber || '',
-            collector: l.collector || '',
-            date: l.date || '',
-            arm: b.arm || l.arm || ''
-          });
-        });
-      }
-    });
+    // Detect active district
+    var districtEl = document.getElementById('districtFilter');
+    var currentDistrict = districtEl ? districtEl.value : 'all';
 
-    var collectorsMap = {};
-    allBills.forEach(function(b) {
-      var collector = b.collector || '';
-      var arm = b.arm || '';
-      var phone = b.collectorPhone || b.phone || '';
-      if (collector && !collectorsMap[collector]) {
-        collectorsMap[collector] = {
-          name: collector,
-          arm: arm,
-          phone: phone,
-          totalBills: 0,
-          deliveredBills: [],
-          pendingBills: []
-        };
-      }
-      if (collector) {
-        collectorsMap[collector].totalBills++;
-        var accNo = b.accountNumber || '';
-        var isDelivered = flatSubmissions.some(function(s) {
-          return s.accountNumber === accNo;
-        });
-        if (isDelivered) {
-          collectorsMap[collector].deliveredBills.push(b);
-        } else {
-          collectorsMap[collector].pendingBills.push(b);
-        }
-      }
-    });
-
-    var collectors = Object.values(collectorsMap).sort(function(a, b) {
-      return b.deliveredBills.length - a.deliveredBills.length;
-    });
+    // Decide mode: use static ALL_BILLS master list only for Ablekuma (or All Districts when it exists)
+    // For LMK (or any district with no static bill list), derive stats purely from submissions
+    var hasStaticBillsForDistrict = staticBills.length > 0 &&
+      (currentDistrict === 'all' || currentDistrict === 'Ablekuma North');
 
     var tdEl = document.getElementById('dashTotalDelivered');
     var tpEl = document.getElementById('dashTotalPending');
     var tcEl = document.getElementById('dashTotalCollectors');
+    var list  = document.getElementById('dashCollectorList');
+    if (!list) return;
+
+    // ── SUBMISSION-ONLY MODE (LMK or no static bills loaded) ──────────────────
+    if (!hasStaticBillsForDistrict) {
+      var collectorsMap = {};
+      submissions.forEach(function(l) {
+        var collector = l.collector || '';
+        if (!collector) return;
+        if (!collectorsMap[collector]) {
+          collectorsMap[collector] = {
+            name: collector,
+            phone: l.phone || '',
+            deliveredCount: 0,
+            failedCount: 0,
+            totalCount: 0
+          };
+        }
+        if (l.bills && Array.isArray(l.bills)) {
+          l.bills.forEach(function(b) {
+            collectorsMap[collector].totalCount++;
+            var d = (b.delivered || '').toString().toLowerCase().trim();
+            if (d === 'yes' || d === 'delivered' || d === 'true') {
+              collectorsMap[collector].deliveredCount++;
+            } else {
+              collectorsMap[collector].failedCount++;
+            }
+          });
+        }
+      });
+
+      var collectors = Object.values(collectorsMap).sort(function(a, b) {
+        return b.deliveredCount - a.deliveredCount;
+      });
+
+      var totalDelivered = collectors.reduce(function(s, c) { return s + c.deliveredCount; }, 0);
+      var totalFailed    = collectors.reduce(function(s, c) { return s + c.failedCount; }, 0);
+
+      if (tdEl) tdEl.textContent = totalDelivered.toLocaleString();
+      if (tpEl) tpEl.textContent = totalFailed.toLocaleString();
+      if (tcEl) tcEl.textContent = collectors.length;
+
+      if (collectors.length === 0) {
+        list.innerHTML =
+          '<div style="text-align:center;padding:40px;background:#eff6ff;border-radius:12px;' +
+          'border:2px dashed #93c5fd;color:#1d4ed8;">' +
+          '<div style="font-size:32px;margin-bottom:12px;">📡</div>' +
+          '<div style="font-weight:700;font-size:15px;margin-bottom:6px;">' +
+          'No Data for ' + (currentDistrict === 'all' ? 'any district' : currentDistrict) + ' Yet</div>' +
+          '<div style="font-size:13px;color:#3b82f6;">The API is connected. Data will appear here once' +
+          ' collectors submit their first logs.</div></div>';
+        return;
+      }
+
+      list.innerHTML = collectors.map(function(c) {
+        var total = c.totalCount;
+        var pct = total > 0 ? Math.round((c.deliveredCount / total) * 100) : 0;
+        var waNumber = (c.phone || '').toString().replace(/^0/, '233').replace(/\D/g, '');
+        return '<div style="background:white;border-radius:16px;padding:16px;' +
+          'box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">' +
+          '<div><div style="font-weight:800;font-size:15px;color:#0a1628;">' + c.name + '</div>' +
+          '<div style="font-size:11px;color:#94a3b8;font-weight:600;">Submission stats · no master bill list loaded</div></div>' +
+          (waNumber ? '<a href="https://wa.me/' + waNumber + '" target="_blank" ' +
+            'style="padding:6px 12px;background:#25D366;color:white;border-radius:8px;' +
+            'font-size:12px;font-weight:700;text-decoration:none;">💬 WhatsApp</a>' : '') +
+          '</div>' +
+          '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
+          '<div style="flex:1;background:#dcfce7;border-radius:8px;padding:8px;text-align:center;">' +
+          '<div style="font-size:20px;font-weight:900;color:#15803d;">' + c.deliveredCount + '</div>' +
+          '<div style="font-size:11px;color:#15803d;font-weight:700;">✅ Delivered</div></div>' +
+          '<div style="flex:1;background:#fee2e2;border-radius:8px;padding:8px;text-align:center;">' +
+          '<div style="font-size:20px;font-weight:900;color:#b91c1c;">' + c.failedCount + '</div>' +
+          '<div style="font-size:11px;color:#b91c1c;font-weight:700;">❌ Failed</div></div>' +
+          '<div style="flex:1;background:#f8fafc;border-radius:8px;padding:8px;text-align:center;">' +
+          '<div style="font-size:20px;font-weight:900;color:#0a1628;">' + total + '</div>' +
+          '<div style="font-size:11px;color:#64748b;font-weight:700;">📋 Total</div></div></div>' +
+          '<div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;' +
+          'font-weight:600;margin-bottom:4px;"><span>Progress</span>' +
+          '<span style="color:#0a1628;font-weight:700;">' + pct + '%</span></div>' +
+          '<div style="background:#e2e8f0;border-radius:20px;height:8px;">' +
+          '<div style="background:#006B3F;height:8px;border-radius:20px;width:' + pct + '%;"></div>' +
+          '</div></div>';
+      }).join('');
+      return;
+    }
+
+    // ── STATIC BILLS MODE (Ablekuma with ALL_BILLS loaded) ────────────────────
+    var flatSubmissions = [];
+    submissions.forEach(function(l) {
+      if (l.bills && Array.isArray(l.bills)) {
+        l.bills.forEach(function(b) {
+          flatSubmissions.push({ accountNumber: b.accountNumber || '' });
+        });
+      }
+    });
+
+    var cMap = {};
+    staticBills.forEach(function(b) {
+      var collector = b.collector || '';
+      var arm = b.arm || '';
+      var phone = b.collectorPhone || b.phone || '';
+      if (collector && !cMap[collector]) {
+        cMap[collector] = { name: collector, arm: arm, phone: phone,
+          totalBills: 0, deliveredBills: [], pendingBills: [] };
+      }
+      if (collector) {
+        cMap[collector].totalBills++;
+        var delivered = flatSubmissions.some(function(s) {
+          return s.accountNumber === (b.accountNumber || '');
+        });
+        if (delivered) cMap[collector].deliveredBills.push(b);
+        else           cMap[collector].pendingBills.push(b);
+      }
+    });
+
+    var collectors = Object.values(cMap).sort(function(a, b) {
+      return b.deliveredBills.length - a.deliveredBills.length;
+    });
 
     var totalDelivered = flatSubmissions.length;
-    var totalPending = Math.max(0, allBills.length - totalDelivered);
-
+    var totalPending   = Math.max(0, staticBills.length - totalDelivered);
     if (tdEl) tdEl.textContent = totalDelivered.toLocaleString();
     if (tpEl) tpEl.textContent = totalPending.toLocaleString();
     if (tcEl) tcEl.textContent = collectors.length;
-
-    var list = document.getElementById('dashCollectorList');
-    if (!list) return;
 
     if (collectors.length === 0) {
       list.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;">No bill data available. Please ensure bills are loaded.</div>';
@@ -4102,19 +4200,15 @@
 
     list.innerHTML = collectors.map(function(c) {
       var delivered = c.deliveredBills.length;
-      var pending = c.pendingBills.length;
-      var total = c.totalBills;
+      var pending   = c.pendingBills.length;
+      var total     = c.totalBills;
       var pct = total > 0 ? Math.round((delivered / total) * 100) : 0;
-      var progressColor = pct >= 75 ? '#006B3F' : pct >= 50 ? '#f59e0b' : '#3b82f6';
       var waNumber = (c.phone || '').toString().replace(/^0/, '233').replace(/\D/g, '');
-
       return '<div style="background:white;border-radius:16px;padding:16px;' +
         'box-shadow:0 2px 8px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">' +
         '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">' +
-        '<div>' +
-        '<div style="font-weight:800;font-size:15px;color:#0a1628;">' + c.name + '</div>' +
-        '<div style="font-size:12px;color:#64748b;font-weight:600;">ARM: ' + (c.arm || '—') + '</div>' +
-        '</div>' +
+        '<div><div style="font-weight:800;font-size:15px;color:#0a1628;">' + c.name + '</div>' +
+        '<div style="font-size:12px;color:#64748b;font-weight:600;">ARM: ' + (c.arm || '—') + '</div></div>' +
         (waNumber ? '<a href="https://wa.me/' + waNumber + '" target="_blank" ' +
           'style="padding:6px 12px;background:#25D366;color:white;border-radius:8px;' +
           'font-size:12px;font-weight:700;text-decoration:none;">💬 WhatsApp</a>' : '') +
@@ -4127,8 +4221,9 @@
         '<div style="font-size:20px;font-weight:900;color:#1d4ed8;">' + pending + '</div>' +
         '<div style="font-size:11px;color:#1d4ed8;font-weight:700;">🔵 Pending</div></div></div>' +
         '<div style="margin-bottom:10px;">' +
-        '<div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;font-weight:600;margin-bottom:4px;">' +
-        '<span style="color:#64748b;">Progress</span><span style="color:#0a1628;font-weight:700;">' + pct + '%</span></div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;' +
+        'font-weight:600;margin-bottom:4px;"><span>Progress</span>' +
+        '<span style="color:#0a1628;font-weight:700;">' + pct + '%</span></div>' +
         '<div style="background:#e2e8f0;border-radius:20px;height:8px;">' +
         '<div style="background:#006B3F;height:8px;border-radius:20px;width:' + pct + '%;"></div></div></div>' +
         '<div style="display:flex;gap:8px;">' +
