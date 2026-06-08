@@ -1057,7 +1057,6 @@
     }
     
     loadDailyLogs();
-    applyDistrictFromURL();
     if (!window.refreshInterval) {
       window.refreshInterval = setInterval(loadDailyLogs, 5 * 60 * 1000);
     }
@@ -1493,42 +1492,9 @@
     if (current && sups[current]) select.value = current;
   }
 
-  // Reflects the selected district in the URL (so the view is bookmarkable/shareable) and updates the page title
-  function syncDistrictToURL() {
-    var select = document.getElementById('districtFilter');
-    var district = select ? select.value : 'all';
-    var url = new URL(window.location.href);
-    if (district === 'all' || !district) {
-      url.searchParams.delete('district');
-      document.title = 'PropCollect - Research Dashboard';
-    } else {
-      url.searchParams.set('district', district);
-      document.title = 'PropCollect - ' + district + ' Dashboard';
-    }
-    window.history.replaceState({}, '', url);
-  }
-
-  // Reads ?district=... from the URL on load and pre-selects that district so a bookmarked/shared
-  // link (e.g. lmk-dashboard.html) lands the researcher straight on that district's view
-  function applyDistrictFromURL() {
-    var params = new URLSearchParams(window.location.search);
-    var district = params.get('district');
-    if (!district) return;
-    var select = document.getElementById('districtFilter');
-    if (!select) return;
-    var match = Array.from(select.options).find(function(o) {
-      return o.value.toLowerCase() === district.toLowerCase();
-    });
-    if (match) {
-      select.value = match.value;
-      onDistrictFilterChange();
-    }
-  }
-
   // Called when district dropdown changes — re-filters and re-renders everything
   function onDistrictFilterChange() {
     applyDistrictFilter();
-    syncDistrictToURL();
     populateDayFilter();
     populateDaySelector();
     populateSupervisorFilter();
