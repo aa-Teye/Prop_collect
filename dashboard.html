@@ -264,6 +264,12 @@
     <div class="nav-item" id="nav-analytics" onclick="switchTab('analytics')">📈 Analytics</div>
     <div class="nav-item" id="nav-export" onclick="switchTab('export')">⬇ Export</div>
     <div class="nav-item" id="nav-settings" onclick="switchTab('settings')">⚙ Settings</div>
+    <div style="border-top:1px solid rgba(255,255,255,0.1); margin:10px 0;"></div>
+    <div class="nav-item" id="nav-lmk"
+      onclick="window.location.href='https://aa-teye.github.io/PropCollect-LMK/research/'"
+      style="color:var(--gold); font-weight:700;">
+      🔬 LMK District
+    </div>
   </div>
 </div>
 
@@ -1494,6 +1500,11 @@
 
   // Called when district dropdown changes — re-filters and re-renders everything
   function onDistrictFilterChange() {
+    var sel = document.getElementById('districtFilter');
+    if (sel && sel.value === 'Lower Manya Krobo') {
+      window.location.href = 'https://aa-teye.github.io/PropCollect-LMK/research/';
+      return;
+    }
     applyDistrictFilter();
     populateDayFilter();
     populateDaySelector();
