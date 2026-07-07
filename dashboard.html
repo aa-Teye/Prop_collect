@@ -435,8 +435,16 @@
         <div class="stat-value" id="ov-rate">0%</div>
       </div>
       <div class="card">
+        <div class="stat-label">Total Value Billed (Delivered)</div>
+        <div class="stat-value" id="ov-billed" style="color:#0a1628;">GHS 0.00</div>
+      </div>
+      <div class="card">
         <div class="stat-label">Amount Collected</div>
         <div class="stat-value" id="ov-amt" style="color:var(--gold);">GHS 0.00</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Collection Rate</div>
+        <div class="stat-value" id="ov-collection-rate" style="color:var(--gold);">0%</div>
       </div>
       <div class="card">
         <div class="stat-label">Active Collectors Today</div>
@@ -1421,6 +1429,10 @@
     });
 
     var grouped = {};
+    // Track the latest attempt per account within each date+collector group so that
+    // a supervisor re-submitting/editing a bill (same accountNumber, same day) replaces
+    // the earlier attempt in the totals instead of being added on top of it.
+    var latestByAccount = {};
     normalized.forEach(function(item) {
       var dateKey = item.date;
       if (dateKey && typeof dateKey === 'string' && dateKey.includes('T')) dateKey = dateKey.split('T')[0];
@@ -1440,6 +1452,7 @@
           totalAmountCollected: 0,
           bills: []
         };
+        latestByAccount[key] = {};
       }
       var bill = {
         accountNumber: item.accountNumber,
@@ -1455,15 +1468,29 @@
         attemptNumber: item.attemptNumber,
         arm: item.arm
       };
-      grouped[key].bills.push(bill);
-      grouped[key].totalBills += 1;
-      // Accept 'yes', 'Yes', 'YES', 'delivered', 'true' as a successful delivery
-      if (bill.delivered === 'yes' || bill.delivered === 'delivered' || bill.delivered === 'true') {
-        grouped[key].totalDelivered += 1;
-        grouped[key].totalAmountCollected += bill.amountPaid;
-      } else {
-        grouped[key].totalFailed += 1;
+
+      var accountMap = latestByAccount[key];
+      var previous = accountMap[bill.accountNumber];
+      if (!previous || (bill.attemptNumber || 1) >= (previous.attemptNumber || 1)) {
+        accountMap[bill.accountNumber] = bill;
       }
+    });
+
+    // Now build final bill lists/totals from only the latest attempt per account.
+    Object.keys(grouped).forEach(function(key) {
+      var accountMap = latestByAccount[key];
+      Object.keys(accountMap).forEach(function(accountNumber) {
+        var bill = accountMap[accountNumber];
+        grouped[key].bills.push(bill);
+        grouped[key].totalBills += 1;
+        // Accept 'yes', 'Yes', 'YES', 'delivered', 'true' as a successful delivery
+        if (bill.delivered === 'yes' || bill.delivered === 'delivered' || bill.delivered === 'true') {
+          grouped[key].totalDelivered += 1;
+          grouped[key].totalAmountCollected += bill.amountPaid;
+        } else {
+          grouped[key].totalFailed += 1;
+        }
+      });
     });
 
     console.log('[normalizeAndGroup]', districtName, '— grouped sessions:', Object.keys(grouped).length);
@@ -1700,21 +1727,31 @@
   }
 
   function renderOverview() {
-    let tBills=0, tDeliv=0, tAmt=0, tFailed=0;
+    let tBills=0, tDeliv=0, tAmt=0, tFailed=0, tBilledValue=0;
     let activeSet = new Set();
-    
+
     let recent = getFilteredLogs();
     var periodLogs = getLogsForPeriod();
-    
+
     periodLogs.forEach(log => {
       tBills += log.totalBills || 0;
       tDeliv += log.totalDelivered || 0;
       tFailed += log.totalFailed || 0;
       tAmt += log.totalAmountCollected || 0;
       activeSet.add(log.collector);
+
+      // Sum the bill value only for bills that were actually delivered to the ratepayer
+      if (log.bills && Array.isArray(log.bills)) {
+        log.bills.forEach(function(b) {
+          if (b.delivered === 'yes' || b.delivered === 'delivered' || b.delivered === 'true') {
+            tBilledValue += parseFloat(b.billAmount) || 0;
+          }
+        });
+      }
     });
-    
+
     let rate = tBills > 0 ? ((tDeliv/tBills)*100).toFixed(1) : 0;
+    let collectionRate = tBilledValue > 0 ? ((tAmt/tBilledValue)*100).toFixed(1) : 0;
     
     document.getElementById('ov-bills').innerText = tBills;
     document.getElementById('ov-deliv').innerText = tDeliv;
@@ -1737,6 +1774,8 @@
     }
     document.getElementById('ov-rate').innerText = rate + '%';
     document.getElementById('ov-amt').innerText = 'GHS ' + tAmt.toFixed(2);
+    document.getElementById('ov-billed').innerText = 'GHS ' + tBilledValue.toFixed(2);
+    document.getElementById('ov-collection-rate').innerText = collectionRate + '%';
     document.getElementById('ov-active').innerText = activeSet.size;
     document.getElementById('ov-failed').innerText = tFailed;
     

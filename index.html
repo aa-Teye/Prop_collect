@@ -134,6 +134,17 @@
       box-sizing: border-box;
     }
 
+    /* Remove the up/down spinner arrows on amount fields so scrolling/misclicks
+       can't silently change the entered bill amount. */
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
     .btn {
       display: block;
       width: 100%;
@@ -923,6 +934,22 @@
   <div id="toast" class="toast"></div>
 
   <script>
+    // Prevent mouse-wheel scroll and Up/Down arrow keys from silently changing
+    // a bill amount while a supervisor is filling in the form (a scroll or
+    // accidental keypress over a focused number field used to bump the value).
+    document.addEventListener('wheel', function(e) {
+      if (document.activeElement && document.activeElement.type === 'number') {
+        document.activeElement.blur();
+      }
+    }, { passive: true });
+
+    document.addEventListener('keydown', function(e) {
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') &&
+          e.target && e.target.tagName === 'INPUT' && e.target.type === 'number') {
+        e.preventDefault();
+      }
+    });
+
     const supervisorData = {
       "Afua Tenkorang": {
         pin: "3333",
@@ -1585,10 +1612,36 @@
       formBills[billIndex].submitted = false;
       
       var submittedBills = JSON.parse(
-        sessionStorage.getItem('submittedBills') 
+        sessionStorage.getItem('submittedBills')
         || '{}');
       var record = submittedBills[bill.accountNumber];
-      
+
+      // sessionStorage only survives the current browser session. If the supervisor
+      // reopened the app (new session, different device, page refresh) fall back to
+      // the server-loaded logs so the old delivered status / amount / details still
+      // show up instead of forcing a fresh YES/NO selection.
+      if (!record && allLogs && allLogs.length) {
+        var matches = allLogs.filter(function(l) {
+          return l.accountNumber === bill.accountNumber &&
+            l.collector === (currentCollector ? currentCollector.name : state.collector);
+        });
+        if (matches.length) {
+          matches.sort(function(a, b2) {
+            return (a.attemptNumber || 1) - (b2.attemptNumber || 1);
+          });
+          var latest = matches[matches.length - 1];
+          record = {
+            delivered: latest.delivered,
+            ratepayerName: latest.ratepayerName,
+            ratepayerPhone: latest.ratepayerPhone,
+            amountPaid: latest.amountPaid,
+            modeOfPayment: latest.modeOfPayment,
+            receiptRef: latest.receiptRef,
+            failureReason: latest.failureReason
+          };
+        }
+      }
+
       if (record) {
         bill.delivered = record.delivered;
         bill.ratepayerName = record.ratepayerName || '';
