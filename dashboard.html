@@ -195,6 +195,7 @@
     }
   </style>
   <script src="billsData.js"></script>
+  <script src="billsDataLMK.js"></script>
 </head>
 <body>
 
@@ -412,6 +413,24 @@
           background:white;color:#64748b;cursor:pointer;">
           ✕ Clear
         </button>
+      </div>
+    </div>
+
+    <div style="font-size:13px;color:#64748b;margin-bottom:10px;font-weight:600;">
+      System-Wide Totals (all bills ever loaded, not affected by the period filter below)
+    </div>
+    <div class="grid-4" style="margin-bottom: 20px;">
+      <div class="card">
+        <div class="stat-label">Total Value of All Bills in System</div>
+        <div class="stat-value" id="sys-total-bills-value" style="color:#0a1628;">GHS 0.00</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Total Value of Bills Delivered</div>
+        <div class="stat-value" id="sys-total-delivered-value" style="color:var(--green);">GHS 0.00</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Total Amount Collected</div>
+        <div class="stat-value" id="sys-total-collected-value" style="color:var(--gold);">GHS 0.00</div>
       </div>
     </div>
 
@@ -1726,9 +1745,59 @@
     };
   }
 
+  // System-wide totals, independent of the Today/Week/All-Time period picker.
+  // "Total Value of All Bills in System" comes from the master bill lists
+  // (window.ALL_BILLS for Ablekuma North, window.ALL_BILLS_LMK for Lower Manya
+  // Krobo) so it reflects every bill ever issued, not just ones submitted so far.
+  function renderSystemTotals() {
+    var districtEl = document.getElementById('districtFilter');
+    var district = districtEl ? districtEl.value : 'all';
+
+    var ablekumaBills = window.ALL_BILLS || [];
+    var lmkBills = window.ALL_BILLS_LMK || [];
+
+    var billsInScope;
+    if (district === 'Lower Manya Krobo') {
+      billsInScope = lmkBills;
+    } else if (district === 'Ablekuma North') {
+      billsInScope = ablekumaBills;
+    } else {
+      billsInScope = ablekumaBills.concat(lmkBills);
+    }
+
+    var totalBillValue = billsInScope.reduce(function(sum, b) {
+      return sum + (parseFloat(b.currentBill) || 0);
+    }, 0);
+
+    var totalDeliveredValue = 0, totalCollected = 0;
+    (allLogs || []).forEach(function(log) {
+      totalCollected += log.totalAmountCollected || 0;
+      if (log.bills && Array.isArray(log.bills)) {
+        log.bills.forEach(function(b) {
+          if (b.delivered === 'yes' || b.delivered === 'delivered' || b.delivered === 'true') {
+            totalDeliveredValue += parseFloat(b.billAmount) || 0;
+          }
+        });
+      }
+    });
+
+    var fmt = function(n) {
+      return 'GHS ' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+
+    var elAll = document.getElementById('sys-total-bills-value');
+    if (elAll) elAll.innerText = fmt(totalBillValue);
+    var elDelivered = document.getElementById('sys-total-delivered-value');
+    if (elDelivered) elDelivered.innerText = fmt(totalDeliveredValue);
+    var elCollected = document.getElementById('sys-total-collected-value');
+    if (elCollected) elCollected.innerText = fmt(totalCollected);
+  }
+
   function renderOverview() {
     let tBills=0, tDeliv=0, tAmt=0, tFailed=0, tBilledValue=0;
     let activeSet = new Set();
+
+    renderSystemTotals();
 
     let recent = getFilteredLogs();
     var periodLogs = getLogsForPeriod();
