@@ -329,6 +329,14 @@
         background:#e2e8f0;color:#0a1628;">
         💰 Payment Report
       </button>
+      <button onclick="switchDashTab('bill-values')"
+        id="tab-bill-values"
+        class="dash-tab-btn"
+        style="padding:10px 16px;border:none;border-radius:8px;
+        font-weight:700;cursor:pointer;font-size:13px;
+        background:#e2e8f0;color:#0a1628;">
+        💵 Bill Values
+      </button>
     </div>
 
     <!-- Panel: Overview (existing content wrapped) -->
@@ -619,6 +627,69 @@
       <!-- Collector Payment Cards -->
       <div id="paymentCollectorList"
         style="display:flex;flex-direction:column;gap:12px;"></div>
+    </div>
+
+    <!-- Panel: Bill Values -->
+    <div id="panel-bill-values" style="display:none;">
+
+      <div style="display:flex;justify-content:space-between;
+        align-items:center;margin-bottom:20px;">
+        <h2 style="font-weight:900;font-size:18px;color:#0a1628;margin:0;">💵 Bill Values</h2>
+      </div>
+      <div style="font-size:13px;color:#64748b;margin-bottom:16px;">
+        System-wide bill values — every bill ever issued, regardless of period.
+      </div>
+
+      <!-- Big Summary Cards -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;
+        gap:12px;margin-bottom:16px;">
+        <div style="background:#eff6ff;border-radius:12px;padding:20px;text-align:center;">
+          <div style="font-size:26px;font-weight:900;color:#1d4ed8;"
+            id="bv-total-bills-value">GHS 0.00</div>
+          <div style="font-size:12px;color:#1e40af;font-weight:700;margin-top:6px;">📋 Total Rate/Value of All Bills in the System</div>
+        </div>
+        <div style="background:#dcfce7;border-radius:12px;padding:20px;text-align:center;">
+          <div style="font-size:26px;font-weight:900;color:#15803d;"
+            id="bv-total-delivered-value">GHS 0.00</div>
+          <div style="font-size:12px;color:#166534;font-weight:700;margin-top:6px;">✅ Value of All Bills Delivered</div>
+        </div>
+        <div style="background:#fef9c3;border-radius:12px;padding:20px;text-align:center;">
+          <div style="font-size:26px;font-weight:900;color:#854d0e;"
+            id="bv-total-collected-value">GHS 0.00</div>
+          <div style="font-size:12px;color:#854d0e;font-weight:700;margin-top:6px;">💰 Actual Money Received (Collected)</div>
+        </div>
+      </div>
+
+      <!-- Rate Cards -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;
+        gap:12px;margin-bottom:20px;">
+        <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;text-align:center;">
+          <div style="font-size:22px;font-weight:900;color:#0a1628;" id="bv-delivery-rate">0%</div>
+          <div style="font-size:12px;color:#64748b;font-weight:700;margin-top:4px;">Delivery Rate (value delivered ÷ total bill value)</div>
+        </div>
+        <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;text-align:center;">
+          <div style="font-size:22px;font-weight:900;color:#0a1628;" id="bv-collection-rate">0%</div>
+          <div style="font-size:12px;color:#64748b;font-weight:700;margin-top:4px;">Collection Rate (collected ÷ value delivered)</div>
+        </div>
+      </div>
+
+      <!-- Breakdown by Supervisor -->
+      <div class="card" style="background:white;border:1px solid #e2e8f0;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+        <h3 style="margin-top:0;color:#0a1628;font-weight:800;border-bottom:2px solid #e2e8f0;padding-bottom:10px;">Billed vs Collected by Supervisor</h3>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="color:#0a1628;font-weight:700;background:#f8fafc;">Supervisor</th>
+                <th style="color:#0a1628;font-weight:700;background:#f8fafc;">Value Delivered (GHS)</th>
+                <th style="color:#0a1628;font-weight:700;background:#f8fafc;">Collected (GHS)</th>
+                <th style="color:#0a1628;font-weight:700;background:#f8fafc;">Efficiency %</th>
+              </tr>
+            </thead>
+            <tbody id="bv-supervisor-breakdown"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
   </div><!-- /tab-overview -->
@@ -1745,11 +1816,15 @@
     };
   }
 
-  // System-wide totals, independent of the Today/Week/All-Time period picker.
-  // "Total Value of All Bills in System" comes from the master bill lists
-  // (window.ALL_BILLS for Ablekuma North, window.ALL_BILLS_LMK for Lower Manya
-  // Krobo) so it reflects every bill ever issued, not just ones submitted so far.
-  function renderSystemTotals() {
+  function fmtGHS(n) {
+    return 'GHS ' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // Shared, period-independent totals: every bill ever issued (from the master
+  // bill lists — window.ALL_BILLS for Ablekuma North, window.ALL_BILLS_LMK for
+  // Lower Manya Krobo), how much of that value has actually been delivered, and
+  // how much has actually been collected — all respecting the district filter.
+  function computeSystemBillTotals() {
     var districtEl = document.getElementById('districtFilter');
     var district = districtEl ? districtEl.value : 'all';
 
@@ -1770,27 +1845,81 @@
     }, 0);
 
     var totalDeliveredValue = 0, totalCollected = 0;
+    var supervisorStats = {};
     (allLogs || []).forEach(function(log) {
       totalCollected += log.totalAmountCollected || 0;
+      if (!supervisorStats[log.supervisor]) {
+        supervisorStats[log.supervisor] = { deliveredValue: 0, collected: 0 };
+      }
+      supervisorStats[log.supervisor].collected += log.totalAmountCollected || 0;
       if (log.bills && Array.isArray(log.bills)) {
         log.bills.forEach(function(b) {
           if (b.delivered === 'yes' || b.delivered === 'delivered' || b.delivered === 'true') {
-            totalDeliveredValue += parseFloat(b.billAmount) || 0;
+            var val = parseFloat(b.billAmount) || 0;
+            totalDeliveredValue += val;
+            supervisorStats[log.supervisor].deliveredValue += val;
           }
         });
       }
     });
 
-    var fmt = function(n) {
-      return 'GHS ' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return {
+      totalBillValue: totalBillValue,
+      totalDeliveredValue: totalDeliveredValue,
+      totalCollected: totalCollected,
+      supervisorStats: supervisorStats
     };
+  }
+
+  // System-wide totals, independent of the Today/Week/All-Time period picker.
+  function renderSystemTotals() {
+    var totals = computeSystemBillTotals();
 
     var elAll = document.getElementById('sys-total-bills-value');
-    if (elAll) elAll.innerText = fmt(totalBillValue);
+    if (elAll) elAll.innerText = fmtGHS(totals.totalBillValue);
     var elDelivered = document.getElementById('sys-total-delivered-value');
-    if (elDelivered) elDelivered.innerText = fmt(totalDeliveredValue);
+    if (elDelivered) elDelivered.innerText = fmtGHS(totals.totalDeliveredValue);
     var elCollected = document.getElementById('sys-total-collected-value');
-    if (elCollected) elCollected.innerText = fmt(totalCollected);
+    if (elCollected) elCollected.innerText = fmtGHS(totals.totalCollected);
+  }
+
+  // Dedicated "Bill Values" tab: same system-wide totals plus delivery/collection
+  // rates and a per-supervisor billed-vs-collected breakdown.
+  function renderBillValuesTab() {
+    var totals = computeSystemBillTotals();
+
+    var elAll = document.getElementById('bv-total-bills-value');
+    if (elAll) elAll.innerText = fmtGHS(totals.totalBillValue);
+    var elDelivered = document.getElementById('bv-total-delivered-value');
+    if (elDelivered) elDelivered.innerText = fmtGHS(totals.totalDeliveredValue);
+    var elCollected = document.getElementById('bv-total-collected-value');
+    if (elCollected) elCollected.innerText = fmtGHS(totals.totalCollected);
+
+    var deliveryRate = totals.totalBillValue > 0
+      ? ((totals.totalDeliveredValue / totals.totalBillValue) * 100).toFixed(1) : 0;
+    var collectionRate = totals.totalDeliveredValue > 0
+      ? ((totals.totalCollected / totals.totalDeliveredValue) * 100).toFixed(1) : 0;
+
+    var elDelivRate = document.getElementById('bv-delivery-rate');
+    if (elDelivRate) elDelivRate.innerText = deliveryRate + '%';
+    var elCollRate = document.getElementById('bv-collection-rate');
+    if (elCollRate) elCollRate.innerText = collectionRate + '%';
+
+    var supRows = Object.keys(totals.supervisorStats).sort().map(function(sup) {
+      var s = totals.supervisorStats[sup];
+      var eff = s.deliveredValue > 0 ? ((s.collected / s.deliveredValue) * 100).toFixed(1) : '0.0';
+      return '<tr>' +
+        '<td><strong>' + sup + '</strong></td>' +
+        '<td>' + fmtGHS(s.deliveredValue) + '</td>' +
+        '<td>' + fmtGHS(s.collected) + '</td>' +
+        '<td>' + eff + '%</td>' +
+      '</tr>';
+    }).join('');
+
+    var tbody = document.getElementById('bv-supervisor-breakdown');
+    if (tbody) {
+      tbody.innerHTML = supRows || '<tr><td colspan="4" style="text-align:center;color:#64748b;">No data yet</td></tr>';
+    }
   }
 
   function renderOverview() {
@@ -4130,7 +4259,7 @@
 
   function switchDashTab(tabName) {
     // Hide all panels
-    var panels = ['panel-overview', 'panel-bill-tracker', 'panel-payment-report'];
+    var panels = ['panel-overview', 'panel-bill-tracker', 'panel-payment-report', 'panel-bill-values'];
     panels.forEach(function(p) {
       var el = document.getElementById(p);
       if (el) el.style.display = 'none';
@@ -4158,6 +4287,8 @@
       refreshDashBillTracker();
     } else if (tabName === 'payment-report') {
       renderPaymentReport();
+    } else if (tabName === 'bill-values') {
+      renderBillValuesTab();
     }
   }
 
